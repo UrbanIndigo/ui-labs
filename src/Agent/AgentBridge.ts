@@ -15,6 +15,7 @@ import { API_SOURCE } from "./AgentApiSource";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
+export const AGENT_BUILD = "2026-11-17.2";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -446,7 +447,13 @@ export function StartAgentBridge(options: BridgeOptions) {
 			RootProducer.getState().storyPreview.mountPreviews.forEach((entry) => previews.push(SummarizeEntry(entry)));
 			return {
 				version: `${Configs.Version.Mayor}.${Configs.Version.Minor}.${Configs.Version.Fix}`,
+				build: AGENT_BUILD,
 				windowOpen: options.DockWidget.Enabled,
+				tool: RootProducer.getState().interface.commentTool
+					? "comment"
+					: RootProducer.getState().interface.selectTool
+						? "select"
+						: "none",
 				stories: GetStoryModules().size(),
 				mounted: previews,
 				comments: GetComments().filter((c) => !c.Resolved).size(),
@@ -463,6 +470,15 @@ export function StartAgentBridge(options: BridgeOptions) {
 				out.push({ path, name: StoryName(module), storybook: StorybookOf(module) });
 			}
 			return out;
+		},
+
+		tool: (args) => {
+			const name = (args.name as string | undefined) ?? "none";
+			if (name !== "select" && name !== "comment" && name !== "none") Fail("tool must be select, comment or none");
+			RootProducer.setSelectTool(name === "select");
+			RootProducer.setCommentTool(name === "comment");
+			Settle(2);
+			return { tool: name };
 		},
 
 		window: (args) => {

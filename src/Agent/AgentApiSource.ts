@@ -41,6 +41,8 @@ function ui.capture(capture: any?, opts: { [string]: any }?)
 	args.capture = if capture == nil then "fill" else capture
 	return call("capture", args)
 end
+-- turn on the Select Elements or Comment For AI tool ("select" | "comment" | "none")
+function ui.tool(name: string?) return call("tool", { name = name }) end
 function ui.zoom(zoom: number?, key: string?) return call("zoom", { zoom = zoom, key = key, reset = true }) end
 -- GUI tree of the story (names, classes, rects relative to the story root, texts, images)
 function ui.tree(opts: { [string]: any }?) return call("tree", opts or {}) end

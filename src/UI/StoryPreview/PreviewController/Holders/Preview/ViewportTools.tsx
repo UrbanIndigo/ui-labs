@@ -31,6 +31,10 @@ function ViewportTools(props: ViewportToolsProps) {
 	const ignoreInset = storyGui?.IgnoreGuiInset ?? false;
 
 	const mouse = useMemo(() => (active && plugin ? plugin.GetMouse() : undefined), [active, plugin]);
+	// PluginMouse.Button1Down doesn't fire over GUI, so a transparent catcher on top of the story takes the clicks
+	// (which also keeps them from pressing the story's own buttons)
+	const clicked = useMemo(() => new Instance("BindableEvent"), []);
+	useEffect(() => () => clicked.Destroy(), [clicked]);
 
 	// PluginMouse X/Y are below the top inset, like a non-IgnoreGuiInset ScreenGui
 	const getMouse = () => {
@@ -60,7 +64,7 @@ function ViewportTools(props: ViewportToolsProps) {
 		return setInterval(() => setHovered(GetGuisAtPosition(holder, getMouse())[0]), 0.1);
 	}, [selectTool, commentTool, holder, mouse, ignoreInset]);
 
-	useEventListener(selectTool && !commentTool ? mouse?.Button1Down : undefined, () => {
+	useEventListener(selectTool && !commentTool ? clicked.Event : undefined, () => {
 		if (hovered) Selection.Set([hovered]);
 	});
 
@@ -74,12 +78,21 @@ function ViewportTools(props: ViewportToolsProps) {
 			ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
 			Archivable={false}
 		>
+			<textbutton
+				key={"ClickCatcher"}
+				Size={UDim2.fromScale(1, 1)}
+				BackgroundTransparency={1}
+				Text={""}
+				AutoButtonColor={false}
+				ZIndex={0}
+				Event={{ MouseButton1Down: () => clicked.Fire() }}
+			/>
 			{commentTool ? (
 				<CommentElements
 					Inside={true}
 					Anchor={anchor}
 					PreviewEntry={props.PreviewEntry}
-					Viewport={{ GetMouse: getMouse, Clicked: mouse.Button1Down }}
+					Viewport={{ GetMouse: getMouse, Clicked: clicked.Event }}
 				/>
 			) : hovered ? (
 				<ComponentHighlight UIComponent={hovered} Holder={holder} Inset={anchor} />

@@ -42,6 +42,7 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.reload(key?)` | Hot-reloads the story; returns logs |
 | `ui.capture(size?, opts?)` | Moves the story into capture mode (below). `false` puts it back in the AI Labs window |
 | `ui.tree(opts?)` | The story's GUI tree: name, class, rect relative to the story root, text (with `textFits = false` when it overflows), images (with `imageLoaded = false`). `opts.depth`, `opts.maxNodes`, `opts.path` |
+| `ui.tool(name?)` | Turns on `"select"` (Select Elements) or `"comment"` (Comment For AI), or `"none"` |
 | `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
 | `ui.window(open?)` | Opens (`true`) or closes (`false`) the AI Labs window |
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
@@ -111,7 +112,8 @@ The story toolbar has a **Comment For AI** button (Shift+M):
 
 Both **Select Elements** and **Comment For AI** also work on stories shown on the viewport (View On Viewport or
 capture mode). While either tool is on, the plugin takes the viewport mouse, so clicks pick GUI elements instead of 3D
-parts. Turn the tool off, or pick another Studio tool, to give the mouse back. The highlight, pins and comment box are
+parts. A transparent click catcher sits over the story while a tool is on, so clicks don't press the story's own
+buttons either. Turn the tool off, or pick another Studio tool, to give the mouse back. The highlight, pins and comment box are
 drawn in CoreGui, so they never appear in `screen_capture` images.
 
 Comments are stored in the plugin's settings, so they survive Studio restarts. Each one records:

@@ -29,7 +29,7 @@ interface CommentElementsProps {
 	Anchor: Binding<Vector2>;
 	PreviewEntry: PreviewEntry;
 	// Viewport mode: mouse position and clicks come from the plugin mouse instead of the widget
-	Viewport?: { GetMouse: () => Vector2; Clicked: RBXScriptSignal };
+	Viewport?: { GetMouse: () => Vector2; Clicked: RBXScriptSignal<() => void> };
 }
 
 interface Draft {
