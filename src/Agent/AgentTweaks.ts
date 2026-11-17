@@ -25,6 +25,10 @@ export interface AgentTweak {
 	Created: number;
 	Updated: number;
 	Resolved: boolean;
+	Claimed?: boolean; // an agent has picked it up (In progress)
+	Note?: string; // agent's note: what it's doing (claim) or what it changed (resolve)
+	ClaimedAt?: number;
+	ResolvedAt?: number;
 }
 
 /** What the Tweak panel offers, in order. Target "" = the element itself. */

@@ -31,7 +31,7 @@ import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.6";
+export const AGENT_BUILD = "2026-11-17.7";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -400,7 +400,9 @@ function CommentToData(comment: AgentComment) {
 		text: comment.Text,
 		controls: comment.Controls,
 		created: comment.Created,
-		resolved: comment.Resolved
+		resolved: comment.Resolved,
+		status: comment.Resolved ? "done" : comment.Claimed ? "in progress" : "open",
+		note: comment.Note
 	};
 }
 
@@ -423,7 +425,9 @@ function TweakToData(tweak: AgentTweak) {
 		mode: tweak.Mode,
 		created: tweak.Created,
 		updated: tweak.Updated,
-		resolved: tweak.Resolved
+		resolved: tweak.Resolved,
+		status: tweak.Resolved ? "done" : tweak.Claimed ? "in progress" : "open",
+		note: tweak.Note
 	};
 }
 
@@ -712,8 +716,16 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		resolveComment: (args) => {
-			const updated = UpdateComment(ReqStr(args, "id"), { Resolved: OptBool(args, "resolved") ?? true });
-			if (!updated) Fail(`no comment '${args.id}'`);
+			const resolved = OptBool(args, "resolved") ?? true;
+			const note = OptStr(args, "note");
+			const updated = UpdateComment(ReqStr(args, "id"), {
+				Resolved: resolved,
+				Claimed: resolved ? true : false,
+				ResolvedAt: resolved ? os.time() : undefined,
+				...(note !== undefined ? { Note: note } : {})
+			});
+			if (!updated) Fail(`resolveComment: no comment '${args.id}'`);
+			PushActivity(resolved ? `done: ${updated.Text.sub(1, 40)}` : `reopened: ${updated.Text.sub(1, 40)}`);
 			return CommentToData(updated);
 		},
 
@@ -818,8 +830,38 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		resolveTweak: (args) => {
-			const updated = UpdateTweak(ReqStr(args, "id"), { Resolved: OptBool(args, "resolved") ?? true });
+			const resolved = OptBool(args, "resolved") ?? true;
+			const note = OptStr(args, "note");
+			const updated = UpdateTweak(ReqStr(args, "id"), {
+				Resolved: resolved,
+				Claimed: resolved ? true : false,
+				ResolvedAt: resolved ? os.time() : undefined,
+				...(note !== undefined ? { Note: note } : {})
+			});
 			if (!updated) Fail(`resolveTweak: no tweak '${args.id}'`);
+			PushActivity(`${resolved ? "done" : "reopened"}: tweak ${updated.Property}`);
+			return TweakToData(updated);
+		},
+
+		claimComment: (args) => {
+			const updated = UpdateComment(ReqStr(args, "id"), {
+				Claimed: true,
+				ClaimedAt: os.time(),
+				Note: OptStr(args, "note")
+			});
+			if (!updated) Fail(`claimComment: no comment '${args.id}'`);
+			PushActivity(`working on: ${updated.Text.sub(1, 40)}`);
+			return CommentToData(updated);
+		},
+
+		claimTweak: (args) => {
+			const updated = UpdateTweak(ReqStr(args, "id"), {
+				Claimed: true,
+				ClaimedAt: os.time(),
+				Note: OptStr(args, "note")
+			});
+			if (!updated) Fail(`claimTweak: no tweak '${args.id}'`);
+			PushActivity(`working on: tweak ${updated.Property}`);
 			return TweakToData(updated);
 		},
 

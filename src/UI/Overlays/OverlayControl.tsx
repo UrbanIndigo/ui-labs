@@ -4,6 +4,7 @@ import { selectPopup } from "Reflex/Overlay";
 import { Div } from "UI/Styles/Div";
 
 import AIActivity from "./AIActivity";
+import CommentsPanel from "./CommentsPanel";
 import DescriptionDisplay from "./DescriptionDisplay";
 import MouseIconActions from "./MouseIconActions";
 
@@ -22,6 +23,7 @@ function OverlayControl(setprops: OverlayControlProps) {
 			<DescriptionDisplay key={"DescriptionDisplay"} />
 			<MouseIconActions />
 			<AIActivity />
+			<CommentsPanel />
 			{popup ? popup.Element : undefined}
 		</Div>
 	);

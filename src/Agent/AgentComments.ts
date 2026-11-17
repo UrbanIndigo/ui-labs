@@ -16,6 +16,10 @@ export interface AgentComment {
 	Controls?: Record<string, string>; // control values when the comment was made (stringified)
 	Created: number; // os.time()
 	Resolved: boolean;
+	Claimed?: boolean; // an agent has picked it up (In progress)
+	Note?: string; // agent's note: what it's doing (claim) or what it changed (resolve)
+	ClaimedAt?: number;
+	ResolvedAt?: number;
 }
 
 const SETTING_KEY = "UILabsAgentComments";

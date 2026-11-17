@@ -12,6 +12,7 @@ interface InterfaceState {
 	selectTool: boolean;
 	commentTool: boolean;
 	tweakTool: boolean;
+	commentsPanel: boolean;
 	showOutlines: boolean;
 	mouseRules: boolean;
 	storyLock: Set<string>;
@@ -28,6 +29,7 @@ const initialState: InterfaceState = {
 	selectTool: false,
 	commentTool: false,
 	tweakTool: false,
+	commentsPanel: false,
 	showOutlines: false,
 	mouseRules: false,
 	storyLock: new Set()
@@ -43,6 +45,7 @@ export const selectMeasureTool = (state: RootState) => state.interface.measureTo
 export const selectSelectTool = (state: RootState) => state.interface.selectTool;
 export const selectCommentTool = (state: RootState) => state.interface.commentTool;
 export const selectTweakTool = (state: RootState) => state.interface.tweakTool;
+export const selectCommentsPanel = (state: RootState) => state.interface.commentsPanel;
 export const selectShowOutlines = (state: RootState) => state.interface.showOutlines;
 export const selectMouseRules = (state: RootState) => state.interface.mouseRules;
 export const selectStoryLock = (state: RootState) => state.interface.storyLock;
@@ -72,6 +75,9 @@ export const InterfaceProducer = createProducer(initialState, {
 	},
 	setSelectTool: (state, active: boolean) => {
 		return { ...state, selectTool: active };
+	},
+	setCommentsPanel: (state, open: boolean) => {
+		return { ...state, commentsPanel: open };
 	},
 	setTweakTool: (state, active: boolean) => {
 		return { ...state, tweakTool: active };

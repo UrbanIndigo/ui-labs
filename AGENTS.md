@@ -46,7 +46,7 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.tool(name?)` | Turns on `"select"` (Select Elements) or `"comment"` (Comment For AI), or `"none"` |
 | `ui.tweaks(opts?)` | Unresolved property tweaks (see Tweak below). `opts.story` filters, `opts.all` includes resolved ones |
 | `ui.tweak({ element, property, value, target? })` | Applies and records a tweak from a script. `value` can be typed or text like `"24"`, `"#ff8800"` or `"{0.5, 0}, {0, 40}"` |
-| `ui.resolveTweak(id, resolved?)` | Marks a tweak as copied into code: it stops being re-applied and leaves `ui.tweaks()` |
+| `ui.claimTweak(id, note?)` / `ui.resolveTweak(id, note?)` | The same for tweaks. Resolving stops re-applying it (the code has the value now) |
 | `ui.clearTweaks({ id \| story \| resolved = true \| all = true, restore? })` | Deletes tweaks. By default it puts the original values back on mounted stories |
 | `ui.showOriginal(true \| false)` | Shows the untweaked values, or the tweaked ones again |
 | `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
@@ -54,7 +54,8 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
 | `ui.logs(since?)` | The last 200 UI Labs warnings plus Output warnings and errors (`since` is an `os.clock()` value) |
 | `ui.comments(opts?)` | Unresolved comments. `opts.story` filters to a story, `opts.all` includes resolved ones |
-| `ui.resolveComment(id, resolved?)` | Marks a comment done (or undone) |
+| `ui.claimComment(id, note?)` | Marks a comment **In progress** in the user's panel ("Looking at the grid columns"). Do this before starting work |
+| `ui.resolveComment(id, note?)` | Marks it **Done**, with a note of what changed ("Grid now shows 5 columns on phones"). `ui.resolveComment(id, false)` reopens it |
 | `ui.deleteComments({ id = ... } \| { story = ... } \| { resolved = true } \| { all = true })` | Deletes comments |
 
 **The user sees what the agent does.** Agents drive the same AI Labs window the user is looking at, never a hidden
@@ -175,6 +176,28 @@ viewport.
 An agent reads them with `ui.tweaks()`, writes the values into the source, then calls `ui.resolveTweak(id)`. The
 recorded values were measured at the viewport size in `viewport`: a `px()`-scaled value has to be divided by the
 story's scale at that size.
+
+## Comments & tweaks panel (for the user)
+
+The **Comments & tweaks** button under the story search, with a pink badge counting open items, opens a panel listing
+every comment and tweak. They're grouped by story, newest first. Each row shows:
+- the status: **Open**, **In progress** (an agent claimed it) or **Done** (resolved), plus the agent's note;
+- the element;
+- the text, or `TextSize 12 → 16` for a tweak;
+- when it was made.
+
+The panel has these filters: **All**, **Open**, **Done** and **This story**. Clicking a row opens its story and
+flashes the element. **Done** / **Reopen** and **✕** (delete) work per row. The panel updates live as agents claim and
+resolve items.
+
+**Agent workflow:**
+1. Read the open items with `ui.comments()` / `ui.tweaks()`. Each one has `status` (`open`, `in progress`, `done`)
+   and `note`.
+2. `ui.claimComment(id, "what you're about to do")`.
+3. Make the change in code and check it (capture the story).
+4. `ui.resolveComment(id, "what you changed")`.
+
+The user sees each step in the panel and in the AI activity pill.
 
 ## Shell helper
 

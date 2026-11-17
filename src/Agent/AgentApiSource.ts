@@ -59,7 +59,13 @@ function ui.tree(opts: { [string]: any }?) return call("tree", opts or {}) end
 function ui.logs(since: number?) return call("logs", { since = since }) end
 -- comments people left with the Comment tool (unresolved; opts.all includes resolved, opts.story filters)
 function ui.comments(opts: { [string]: any }?) return call("comments", opts or {}) end
-function ui.resolveComment(id: string, resolved: boolean?) return call("resolveComment", { id = id, resolved = resolved }) end
+-- claim an item before working on it (shows "In progress" in the user's Comments panel), then resolve it with a note
+-- of what changed: ui.resolveComment(id, "Made the title icon 70px").  ui.resolveComment(id, false) reopens it.
+function ui.claimComment(id: string, note: string?) return call("claimComment", { id = id, note = note }) end
+function ui.resolveComment(id: string, noteOrResolved: any?, note: string?)
+	if typeof(noteOrResolved) == "string" then return call("resolveComment", { id = id, note = noteOrResolved }) end
+	return call("resolveComment", { id = id, resolved = noteOrResolved, note = note })
+end
 -- property tweaks people made with the Tweak tool (unresolved; opts.all includes resolved, opts.story filters).
 -- Each: element, target ("" or a child class like "UICorner"), property, old/new (text) + oldValue/newValue (typed),
 -- controls and viewport size at the time
@@ -75,7 +81,11 @@ function ui.click(target: any, opts: { [string]: any }?)
 	elseif typeof(target) == "table" then for k, v in target do args[k] = v end end
 	return call("click", args)
 end
-function ui.resolveTweak(id: string, resolved: boolean?) return call("resolveTweak", { id = id, resolved = resolved }) end
+function ui.claimTweak(id: string, note: string?) return call("claimTweak", { id = id, note = note }) end
+function ui.resolveTweak(id: string, noteOrResolved: any?, note: string?)
+	if typeof(noteOrResolved) == "string" then return call("resolveTweak", { id = id, note = noteOrResolved }) end
+	return call("resolveTweak", { id = id, resolved = noteOrResolved, note = note })
+end
 -- opts: { id = ... } | { story = ... } | { resolved = true } | { all = true }; restore = false keeps the tweaked values
 function ui.clearTweaks(opts: { [string]: any }) return call("clearTweaks", opts) end
 -- show the original values (true) or the tweaked ones (false)
