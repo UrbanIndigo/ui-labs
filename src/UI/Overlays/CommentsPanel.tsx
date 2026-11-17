@@ -10,7 +10,7 @@ import Configs from "Plugin/Configs";
 import { selectCommentsPanel } from "Reflex/Interface";
 import Corner from "UI/Styles/Corner";
 
-export type ItemStatus = "Open" | "In progress" | "Done";
+export type ItemStatus = "Open" | "Seen" | "In progress" | "Done";
 
 export interface PanelItem {
 	Kind: "comment" | "tweak";
@@ -22,10 +22,12 @@ export interface PanelItem {
 	Created: number;
 	Status: ItemStatus;
 	Note?: string;
+	SeenBy?: string;
 }
 
 const STATUS_COLORS: Record<ItemStatus, Color3> = {
 	Open: Color3.fromRGB(255, 196, 61),
+	Seen: Color3.fromRGB(196, 150, 255),
 	"In progress": Color3.fromRGB(105, 181, 255),
 	Done: Color3.fromRGB(120, 220, 160)
 };
@@ -33,9 +35,10 @@ const FILTERS = ["All", "Open", "Done", "This story"] as const;
 type Filter = (typeof FILTERS)[number];
 const FONT = Font.fromName("GothamSSm", Enum.FontWeight.Medium);
 
-function StatusOf(item: { Resolved: boolean; Claimed?: boolean }): ItemStatus {
+function StatusOf(item: { Resolved: boolean; Claimed?: boolean; Seen?: boolean }): ItemStatus {
 	if (item.Resolved) return "Done";
 	if (item.Claimed) return "In progress";
+	if (item.Seen) return "Seen";
 	return "Open";
 }
 
@@ -51,7 +54,8 @@ export function GetPanelItems(): PanelItem[] {
 			Text: c.Text,
 			Created: c.Created,
 			Status: StatusOf(c),
-			Note: c.Note
+			Note: c.Note,
+			SeenBy: c.SeenBy
 		});
 	}
 	for (const t of GetTweaks()) {
@@ -61,10 +65,11 @@ export function GetPanelItems(): PanelItem[] {
 			Story: t.Story,
 			StoryName: t.StoryName,
 			Element: t.Element,
-			Text: `${t.Target !== "" ? t.Target + "." : ""}${t.Property} ${FormatEncoded(t.Old)} → ${FormatEncoded(t.New)}`,
+			Text: `${t.Target !== "" ? t.Target + "." : ""}${t.Property} ${FormatEncoded(t.Old)} -> ${FormatEncoded(t.New)}`,
 			Created: t.Updated ?? t.Created,
 			Status: StatusOf(t),
-			Note: t.Note
+			Note: t.Note,
+			SeenBy: t.SeenBy
 		});
 	}
 	return items;
@@ -85,7 +90,7 @@ function Ago(time: number) {
 function ShortPath(path: string) {
 	if (path === "") return "(story root)";
 	const parts = path.split("/");
-	return parts.size() <= 2 ? path : "…/" + parts[parts.size() - 2] + "/" + parts[parts.size() - 1];
+	return parts.size() <= 2 ? path : ".../" + parts[parts.size() - 2] + "/" + parts[parts.size() - 1];
 }
 
 function CommentsPanel() {
@@ -127,7 +132,7 @@ function CommentsPanel() {
 	if (!open) return <></>;
 
 	const setDone = (item: PanelItem, done: boolean) => {
-		const changes = done ? { Resolved: true, ResolvedAt: os.time() } : { Resolved: false, Claimed: false };
+		const changes = done ? { Resolved: true, ResolvedAt: os.time() } : { Resolved: false, Claimed: false, Seen: false };
 		if (item.Kind === "comment") UpdateComment(item.Id, changes);
 		else UpdateTweak(item.Id, changes);
 	};
@@ -161,7 +166,7 @@ function CommentsPanel() {
 				LayoutOrder={order}
 				Size={new UDim2(1, 0, 0, 22)}
 				BackgroundTransparency={1}
-				Text={`${group.Name}  ·  ${group.Items.size()}`}
+				Text={`${group.Name}  |  ${group.Items.size()}`}
 				TextColor3={theme.Text.Color}
 				FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Bold)}
 				TextSize={13}
@@ -171,6 +176,7 @@ function CommentsPanel() {
 		for (const item of group.Items) {
 			order++;
 			const color = STATUS_COLORS[item.Status];
+			const badge = item.Status === "Seen" && item.SeenBy !== undefined ? `Seen by ${item.SeenBy}` : item.Status;
 			rows.set(
 				`${item.Kind}_${item.Id}`,
 				<textbutton
@@ -194,9 +200,9 @@ function CommentsPanel() {
 					<frame key={"Top"} LayoutOrder={1} Size={new UDim2(1, 0, 0, 18)} BackgroundTransparency={1}>
 						<textlabel
 							key={"Status"}
-							Size={UDim2.fromOffset(item.Status.size() * 7 + 12, 16)}
+							Size={UDim2.fromOffset(badge.size() * 7 + 12, 16)}
 							BackgroundColor3={color}
-							Text={item.Status}
+							Text={badge}
 							TextColor3={Color3.fromRGB(30, 30, 30)}
 							FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Bold)}
 							TextSize={10}
@@ -205,10 +211,10 @@ function CommentsPanel() {
 						</textlabel>
 						<textlabel
 							key={"Where"}
-							Position={UDim2.fromOffset(item.Status.size() * 7 + 18, 0)}
-							Size={new UDim2(1, -(item.Status.size() * 7 + 18) - 150, 1, 0)}
+							Position={UDim2.fromOffset(badge.size() * 7 + 18, 0)}
+							Size={new UDim2(1, -(badge.size() * 7 + 18) - 150, 1, 0)}
 							BackgroundTransparency={1}
-							Text={`${item.Kind === "tweak" ? "Tweak · " : ""}${ShortPath(item.Element)}`}
+							Text={`${item.Kind === "tweak" ? "Tweak | " : ""}${ShortPath(item.Element)}`}
 							TextColor3={theme.Text.Disabled}
 							FontFace={FONT}
 							TextSize={11}
@@ -241,7 +247,7 @@ function CommentsPanel() {
 							{item.Status === "Done"
 								? smallButton("B_Reopen", "Reopen", () => setDone(item, false))
 								: smallButton("B_Done", "Done", () => setDone(item, true))}
-							{smallButton("C_Delete", "✕", () => remove(item), Color3.fromRGB(255, 143, 143))}
+							{smallButton("C_Delete", "X", () => remove(item), Color3.fromRGB(255, 143, 143))}
 						</frame>
 					</frame>
 					<textlabel
@@ -301,7 +307,7 @@ function CommentsPanel() {
 				key={"Title"}
 				Size={new UDim2(1, -30, 0, 24)}
 				BackgroundTransparency={1}
-				Text={`Comments & tweaks  ·  ${openCount} open`}
+				Text={`Comments & tweaks  |  ${openCount} open`}
 				TextColor3={theme.Text.Color}
 				FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Bold)}
 				TextSize={15}
@@ -313,7 +319,7 @@ function CommentsPanel() {
 				Position={UDim2.fromScale(1, 0)}
 				Size={UDim2.fromOffset(24, 24)}
 				BackgroundColor3={theme.ActionsPanel.TabHover}
-				Text={"✕"}
+				Text={"X"}
 				TextColor3={theme.Text.Color}
 				FontFace={FONT}
 				TextSize={12}

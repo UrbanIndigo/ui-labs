@@ -26,6 +26,9 @@ export interface AgentTweak {
 	Updated: number;
 	Resolved: boolean;
 	Claimed?: boolean; // an agent has picked it up (In progress)
+	Seen?: boolean; // an agent has read it
+	SeenAt?: number;
+	SeenBy?: string;
 	Note?: string; // agent's note: what it's doing (claim) or what it changed (resolve)
 	ClaimedAt?: number;
 	ResolvedAt?: number;

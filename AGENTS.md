@@ -54,6 +54,7 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
 | `ui.logs(since?)` | The last 200 UI Labs warnings plus Output warnings and errors (`since` is an `os.clock()` value) |
 | `ui.comments(opts?)` | Unresolved comments. `opts.story` filters to a story, `opts.all` includes resolved ones |
+| `ui.seenComment(id, by?)` / `ui.seenTweak(id, by?)` | Marks an item **Seen** (read) in the user's panel. `by` is your session name, shown as "Seen by ...". `ui.comments({ markSeen = true, by = ... })` marks everything it returns |
 | `ui.claimComment(id, note?)` | Marks a comment **In progress** in the user's panel ("Looking at the grid columns"). Do this before starting work |
 | `ui.resolveComment(id, note?)` | Marks it **Done**, with a note of what changed ("Grid now shows 5 columns on phones"). `ui.resolveComment(id, false)` reopens it |
 | `ui.deleteComments({ id = ... } \| { story = ... } \| { resolved = true } \| { all = true })` | Deletes comments |
@@ -181,7 +182,7 @@ story's scale at that size.
 
 The **Comments & tweaks** button under the story search, with a pink badge counting open items, opens a panel listing
 every comment and tweak. They're grouped by story, newest first. Each row shows:
-- the status: **Open**, **In progress** (an agent claimed it) or **Done** (resolved), plus the agent's note;
+- the status: **Open**, **Seen** (an agent read it, "Seen by ..."), **In progress** (an agent claimed it) or **Done** (resolved), plus the agent's note;
 - the element;
 - the text, or `TextSize 12 → 16` for a tweak;
 - when it was made.
@@ -191,8 +192,9 @@ flashes the element. **Done** / **Reopen** and **✕** (delete) work per row. Th
 resolve items.
 
 **Agent workflow:**
-1. Read the open items with `ui.comments()` / `ui.tweaks()`. Each one has `status` (`open`, `in progress`, `done`)
-   and `note`.
+1. Read the open items with `ui.comments({ markSeen = true, by = "<session>" })` / `ui.tweaks({ markSeen = true, by = ... })`.
+   That marks them **Seen**. Each one has `status` (`open`, `seen`, `in progress`, `done`), `note` and `seenBy`.
+   Loggers such as the farm-tycoon watcher read without `markSeen`.
 2. `ui.claimComment(id, "what you're about to do")`.
 3. Make the change in code and check it (capture the story).
 4. `ui.resolveComment(id, "what you changed")`.

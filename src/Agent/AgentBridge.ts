@@ -31,7 +31,7 @@ import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.7";
+export const AGENT_BUILD = "2026-11-17.8";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -401,8 +401,10 @@ function CommentToData(comment: AgentComment) {
 		controls: comment.Controls,
 		created: comment.Created,
 		resolved: comment.Resolved,
-		status: comment.Resolved ? "done" : comment.Claimed ? "in progress" : "open",
-		note: comment.Note
+		status: comment.Resolved ? "done" : comment.Claimed ? "in progress" : comment.Seen ? "seen" : "open",
+		note: comment.Note,
+		seenAt: comment.SeenAt,
+		seenBy: comment.SeenBy
 	};
 }
 
@@ -426,8 +428,10 @@ function TweakToData(tweak: AgentTweak) {
 		created: tweak.Created,
 		updated: tweak.Updated,
 		resolved: tweak.Resolved,
-		status: tweak.Resolved ? "done" : tweak.Claimed ? "in progress" : "open",
-		note: tweak.Note
+		status: tweak.Resolved ? "done" : tweak.Claimed ? "in progress" : tweak.Seen ? "seen" : "open",
+		note: tweak.Note,
+		seenAt: tweak.SeenAt,
+		seenBy: tweak.SeenBy
 	};
 }
 
@@ -673,7 +677,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 				const size = info.size;
 				PushActivity(
 					typeIs(size, "table")
-						? `capturing at ${(size as { width: number }).width}×${(size as { height: number }).height}`
+						? `capturing at ${(size as { width: number }).width}x${(size as { height: number }).height}`
 						: "capturing (full viewport)"
 				);
 			} else {
@@ -709,10 +713,16 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const story = OptStr(args, "story");
 			let module: ModuleScript | undefined;
 			if (story !== undefined) module = FindStory(story);
-			return GetComments()
+			const list = GetComments()
 				.filter((c) => (args.all === true ? true : !c.Resolved))
-				.filter((c) => (module ? c.Story === module.GetFullName() : true))
-				.map(CommentToData);
+				.filter((c) => (module ? c.Story === module.GetFullName() : true));
+			if (OptBool(args, "markSeen") === true) {
+				const by = OptStr(args, "by");
+				for (const c of list) if (!c.Seen && !c.Resolved) UpdateComment(c.Id, { Seen: true, SeenAt: os.time(), SeenBy: by });
+				const fresh = GetComments();
+				return list.map((c) => CommentToData(fresh.find((f) => f.Id === c.Id) ?? c));
+			}
+			return list.map(CommentToData);
 		},
 
 		resolveComment: (args) => {
@@ -721,6 +731,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const updated = UpdateComment(ReqStr(args, "id"), {
 				Resolved: resolved,
 				Claimed: resolved ? true : false,
+				...(resolved ? {} : { Seen: false }),
 				ResolvedAt: resolved ? os.time() : undefined,
 				...(note !== undefined ? { Note: note } : {})
 			});
@@ -733,10 +744,16 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const story = OptStr(args, "story");
 			let module: ModuleScript | undefined;
 			if (story !== undefined) module = FindStory(story);
-			return GetTweaks()
+			const list = GetTweaks()
 				.filter((t) => (OptBool(args, "all") === true ? true : !t.Resolved))
-				.filter((t) => (module ? t.Story === module.GetFullName() : true))
-				.map(TweakToData);
+				.filter((t) => (module ? t.Story === module.GetFullName() : true));
+			if (OptBool(args, "markSeen") === true) {
+				const by = OptStr(args, "by");
+				for (const t of list) if (!t.Seen && !t.Resolved) UpdateTweak(t.Id, { Seen: true, SeenAt: os.time(), SeenBy: by });
+				const fresh = GetTweaks();
+				return list.map((t) => TweakToData(fresh.find((f) => f.Id === t.Id) ?? t));
+			}
+			return list.map(TweakToData);
 		},
 
 		tweak: (args) => {
@@ -835,6 +852,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const updated = UpdateTweak(ReqStr(args, "id"), {
 				Resolved: resolved,
 				Claimed: resolved ? true : false,
+				...(resolved ? {} : { Seen: false }),
 				ResolvedAt: resolved ? os.time() : undefined,
 				...(note !== undefined ? { Note: note } : {})
 			});
@@ -843,10 +861,25 @@ export function StartAgentBridge(options: BridgeOptions) {
 			return TweakToData(updated);
 		},
 
+		seenComment: (args) => {
+			const updated = UpdateComment(ReqStr(args, "id"), { Seen: true, SeenAt: os.time(), SeenBy: OptStr(args, "by") });
+			if (!updated) Fail(`seenComment: no comment '${args.id}'`);
+			PushActivity(`read: ${updated.Text.sub(1, 40)}`);
+			return CommentToData(updated);
+		},
+
+		seenTweak: (args) => {
+			const updated = UpdateTweak(ReqStr(args, "id"), { Seen: true, SeenAt: os.time(), SeenBy: OptStr(args, "by") });
+			if (!updated) Fail(`seenTweak: no tweak '${args.id}'`);
+			PushActivity(`read: tweak ${updated.Property}`);
+			return TweakToData(updated);
+		},
+
 		claimComment: (args) => {
 			const updated = UpdateComment(ReqStr(args, "id"), {
 				Claimed: true,
 				ClaimedAt: os.time(),
+				Seen: true,
 				Note: OptStr(args, "note")
 			});
 			if (!updated) Fail(`claimComment: no comment '${args.id}'`);
@@ -858,6 +891,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const updated = UpdateTweak(ReqStr(args, "id"), {
 				Claimed: true,
 				ClaimedAt: os.time(),
+				Seen: true,
 				Note: OptStr(args, "note")
 			});
 			if (!updated) Fail(`claimTweak: no tweak '${args.id}'`);

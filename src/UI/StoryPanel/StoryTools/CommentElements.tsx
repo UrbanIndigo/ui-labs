@@ -273,7 +273,7 @@ function CommentElements(props: CommentElementsProps) {
 						key={"Path"}
 						Size={new UDim2(1, 0, 0, 14)}
 						BackgroundTransparency={1}
-						Text={`Comment for AI · ${draft.Path === "" ? "(story root)" : draft.Path}`}
+						Text={`Comment for AI | ${draft.Path === "" ? "(story root)" : draft.Path}`}
 						TextColor3={theme.Text.Disabled}
 						FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Medium)}
 						TextSize={11}

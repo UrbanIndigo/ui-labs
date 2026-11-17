@@ -61,6 +61,10 @@ function ui.logs(since: number?) return call("logs", { since = since }) end
 function ui.comments(opts: { [string]: any }?) return call("comments", opts or {}) end
 -- claim an item before working on it (shows "In progress" in the user's Comments panel), then resolve it with a note
 -- of what changed: ui.resolveComment(id, "Made the title icon 70px").  ui.resolveComment(id, false) reopens it.
+-- mark an item read (shows "Seen" in the user's panel); by = your session name. ui.comments({ markSeen = true, by = ... })
+-- marks everything it returns.
+function ui.seenComment(id: string, by: string?) return call("seenComment", { id = id, by = by }) end
+function ui.seenTweak(id: string, by: string?) return call("seenTweak", { id = id, by = by }) end
 function ui.claimComment(id: string, note: string?) return call("claimComment", { id = id, note = note }) end
 function ui.resolveComment(id: string, noteOrResolved: any?, note: string?)
 	if typeof(noteOrResolved) == "string" then return call("resolveComment", { id = id, note = noteOrResolved }) end

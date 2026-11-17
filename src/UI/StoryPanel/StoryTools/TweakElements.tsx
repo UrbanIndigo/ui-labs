@@ -324,7 +324,7 @@ function TweakElements(props: TweakElementsProps) {
 						key={"Title"}
 						Size={new UDim2(1, -60, 0, 20)}
 						BackgroundTransparency={1}
-						Text={element ? `${element.ClassName} · ${picked.Path === "" ? "(story root)" : picked.Path}` : "element gone (re-rendered?)"}
+						Text={element ? `${element.ClassName} | ${picked.Path === "" ? "(story root)" : picked.Path}` : "element gone (re-rendered?)"}
 						TextColor3={theme.Text.Color}
 						FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Bold)}
 						TextSize={12}
