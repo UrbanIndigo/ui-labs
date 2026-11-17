@@ -27,7 +27,7 @@ function CommentTool(props: ToolButtonProps) {
 			OnClick={OnToggle}
 			OnRightClick={props.OnRightClick}
 			Order={props.Order}
-			Shortcut={Enum.KeyCode.M}
+			Shortcut={Enum.KeyCode.N}
 			ShortcutModifier={Enum.ModifierKey.Shift}
 		/>
 	);

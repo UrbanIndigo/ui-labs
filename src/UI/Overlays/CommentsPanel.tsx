@@ -1,5 +1,5 @@
 import { useEventListener } from "@rbxts/pretty-react-hooks";
-import React, { useMemo, useState } from "@rbxts/react";
+import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
 import { useProducer, useSelector } from "@rbxts/react-reflex";
 import { CommentsChanged, DeleteComments, GetComments, UpdateComment } from "Agent/AgentComments";
 import { OpenItem } from "Agent/AgentNavigate";
@@ -9,7 +9,7 @@ import { FormatEncoded } from "Agent/AgentValues";
 import { useTheme } from "Hooks/Reflex/Use/Theme";
 import { RemoveExtension } from "Hooks/Reflex/Control/ModuleList/Utils";
 import Configs from "Plugin/Configs";
-import { selectCommentsPanel } from "Reflex/Interface";
+import { selectCommentsPanel, selectPageComposer } from "Reflex/Interface";
 import Corner from "UI/Styles/Corner";
 
 export type ItemStatus = "Open" | "Seen" | "In progress" | "Done";
@@ -100,10 +100,15 @@ function ShortPath(path: string) {
 function CommentsPanel() {
 	const theme = useTheme();
 	const open = useSelector(selectCommentsPanel);
-	const { setCommentsPanel } = useProducer<RootProducer>();
+	const { setCommentsPanel, setPageComposer } = useProducer<RootProducer>();
 	const rootEntry = useSelector((state: RootState) => state.storyPreview.mountPreviews.get(Configs.RootPreviewKey));
 	const currentStory = rootEntry?.Module;
-	const [composing, setComposing] = useState(false);
+	const composing = useSelector(selectPageComposer);
+	const setComposing = (open: boolean) => setPageComposer(open);
+	const inputRef = useRef<TextBox>();
+	useEffect(() => {
+		if (composing && open) task.defer(() => inputRef.current?.CaptureFocus());
+	}, [composing, open]);
 	const [draft, setDraft] = useState("");
 	const [items, setItems] = useState(GetPanelItems);
 	const [filter, setFilter] = useState<Filter>("All");
@@ -337,7 +342,12 @@ function CommentsPanel() {
 				TextColor3={theme.Text.Color}
 				FontFace={FONT}
 				TextSize={12}
-				Event={{ Activated: () => setCommentsPanel(false) }}
+				Event={{
+					Activated: () => {
+						setCommentsPanel(false);
+						setPageComposer(false);
+					}
+				}}
 			>
 				<Corner Radius={4} />
 			</textbutton>
@@ -359,6 +369,7 @@ function CommentsPanel() {
 				<frame key={"Composer"} Position={UDim2.fromOffset(0, 60)} Size={new UDim2(1, 0, 0, 62)} BackgroundTransparency={1}>
 					<textbox
 						key={"Input"}
+						ref={inputRef}
 						Size={new UDim2(1, 0, 0, 34)}
 						BackgroundColor3={theme.Search.Color}
 						Text={draft}

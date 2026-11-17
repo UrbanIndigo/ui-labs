@@ -126,7 +126,7 @@ the ScreenGui.
 
 ## Comments for AI
 
-The story toolbar has a **Comment For AI** button (Shift+M):
+The story toolbar has a **Comment For AI** button (eyedropper, Shift+N):
 
 1. Hover to highlight an element, click it, type a note, and press Enter (or Save).
 2. Numbered pins mark the comments on their elements. Clicking a pin edits or deletes its comment.
@@ -192,7 +192,7 @@ The panel has these filters: **All**, **Open**, **Done** and **This story**. Cli
 flashes the element. **Done** / **Reopen** and **✕** (delete) work per row. The panel updates live as agents claim and
 resolve items.
 
-**Page comments:** **+ Page comment** in the panel header leaves a note about the whole open story instead of one
+**Page comments:** the **Page comment** button in the story toolbar (page icon, Shift+P), or **+ Page comment** in the panel header, leaves a note about the whole open story instead of one
 element. These show "Whole page" in place of an element path, and clicking one opens the story without highlighting
 anything. In `ui.comments()` they have `scope = "story"` and no `element`. Element comments have `scope = "element"`.
 Both kinds carry the story `controls` and the `viewport` size when they were made. Seen, claim and resolve work the

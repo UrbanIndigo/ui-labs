@@ -6,6 +6,7 @@ import FullscreenMode from "./Buttons.tsx/FullscreenMode";
 import LightBackground from "./Buttons.tsx/LightBackground";
 import MeasureTool from "./Buttons.tsx/MeasureTool";
 import MouseRules from "./Buttons.tsx/MouseRules";
+import PageComment from "./Buttons.tsx/PageComment";
 import Reload from "./Buttons.tsx/Reload";
 import SelectElements from "./Buttons.tsx/SelectElements";
 import ShowOutlines from "./Buttons.tsx/ShowOutlines";
@@ -42,6 +43,7 @@ export const ToolButtonsList = [
 	{ Name: "MeasureTool", Render: MeasureTool, DisplayName: "Measure Tool" },
 	{ Name: "SelectElements", Render: SelectElements, DisplayName: "Select Elements" },
 	{ Name: "CommentTool", Render: CommentTool, DisplayName: "Comment For AI" },
+	{ Name: "PageComment", Render: PageComment, DisplayName: "Page Comment" },
 	{ Name: "TweakTool", Render: TweakTool, DisplayName: "Tweak Properties" },
 	{ Name: "ShowOutlines", Render: ShowOutlines, DisplayName: "Show Outlines" },
 	{ Name: "MouseRules", Render: MouseRules, DisplayName: "Mouse Rules" }
