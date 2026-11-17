@@ -3,9 +3,11 @@ import React, { useMemo, useState } from "@rbxts/react";
 import { useProducer, useSelector } from "@rbxts/react-reflex";
 import { CommentsChanged, DeleteComments, GetComments, UpdateComment } from "Agent/AgentComments";
 import { OpenItem } from "Agent/AgentNavigate";
+import { AddPageComment } from "Agent/AgentPageComment";
 import { DeleteTweaks, GetTweaks, TweaksChanged, UpdateTweak } from "Agent/AgentTweaks";
 import { FormatEncoded } from "Agent/AgentValues";
 import { useTheme } from "Hooks/Reflex/Use/Theme";
+import { RemoveExtension } from "Hooks/Reflex/Control/ModuleList/Utils";
 import Configs from "Plugin/Configs";
 import { selectCommentsPanel } from "Reflex/Interface";
 import Corner from "UI/Styles/Corner";
@@ -23,6 +25,7 @@ export interface PanelItem {
 	Status: ItemStatus;
 	Note?: string;
 	SeenBy?: string;
+	Page?: boolean;
 }
 
 const STATUS_COLORS: Record<ItemStatus, Color3> = {
@@ -55,7 +58,8 @@ export function GetPanelItems(): PanelItem[] {
 			Created: c.Created,
 			Status: StatusOf(c),
 			Note: c.Note,
-			SeenBy: c.SeenBy
+			SeenBy: c.SeenBy,
+			Page: c.Scope === "story"
 		});
 	}
 	for (const t of GetTweaks()) {
@@ -97,9 +101,10 @@ function CommentsPanel() {
 	const theme = useTheme();
 	const open = useSelector(selectCommentsPanel);
 	const { setCommentsPanel } = useProducer<RootProducer>();
-	const currentStory = useSelector(
-		(state: RootState) => state.storyPreview.mountPreviews.get(Configs.RootPreviewKey)?.Module
-	);
+	const rootEntry = useSelector((state: RootState) => state.storyPreview.mountPreviews.get(Configs.RootPreviewKey));
+	const currentStory = rootEntry?.Module;
+	const [composing, setComposing] = useState(false);
+	const [draft, setDraft] = useState("");
 	const [items, setItems] = useState(GetPanelItems);
 	const [filter, setFilter] = useState<Filter>("All");
 
@@ -186,7 +191,7 @@ function CommentsPanel() {
 					BackgroundColor3={theme.ActionsPanel.TabsBackground}
 					AutoButtonColor={true}
 					Text={""}
-					Event={{ Activated: () => OpenItem(item.Story, item.Element, item.Kind === "tweak" ? "tweak" : "comment") }}
+					Event={{ Activated: () => OpenItem(item.Story, item.Page ? undefined : item.Element, item.Kind === "tweak" ? "tweak" : "comment") }}
 				>
 					<Corner Radius={6} />
 					<uistroke Color={color} Thickness={1} Transparency={0.4} />
@@ -214,7 +219,7 @@ function CommentsPanel() {
 							Position={UDim2.fromOffset(badge.size() * 7 + 18, 0)}
 							Size={new UDim2(1, -(badge.size() * 7 + 18) - 150, 1, 0)}
 							BackgroundTransparency={1}
-							Text={`${item.Kind === "tweak" ? "Tweak | " : ""}${ShortPath(item.Element)}`}
+							Text={`${item.Kind === "tweak" ? "Tweak | " : ""}${item.Page ? "Whole page" : ShortPath(item.Element)}`}
 							TextColor3={theme.Text.Disabled}
 							FontFace={FONT}
 							TextSize={11}
@@ -284,6 +289,14 @@ function CommentsPanel() {
 	}
 
 	const openCount = items.filter((item) => item.Status !== "Done").size();
+	const savePage = () => {
+		if (!rootEntry) return;
+		if (AddPageComment(rootEntry, draft)) {
+			setDraft("");
+			setComposing(false);
+		}
+	};
+	const listTop = composing ? 128 : 60;
 
 	return (
 		<frame
@@ -305,8 +318,9 @@ function CommentsPanel() {
 			/>
 			<textlabel
 				key={"Title"}
-				Size={new UDim2(1, -30, 0, 24)}
+				Size={new UDim2(1, -156, 0, 24)}
 				BackgroundTransparency={1}
+				TextTruncate={Enum.TextTruncate.AtEnd}
 				Text={`Comments & tweaks  |  ${openCount} open`}
 				TextColor3={theme.Text.Color}
 				FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Bold)}
@@ -327,6 +341,58 @@ function CommentsPanel() {
 			>
 				<Corner Radius={4} />
 			</textbutton>
+			<textbutton
+				key={"AddPage"}
+				AnchorPoint={new Vector2(1, 0)}
+				Position={new UDim2(1, -30, 0, 0)}
+				Size={UDim2.fromOffset(118, 24)}
+				BackgroundColor3={composing ? theme.StoryPreview.Selected : theme.ActionsPanel.TabHover}
+				Text={"+ Page comment"}
+				TextColor3={composing ? theme.StoryPreview.TextSelected : theme.Text.Color}
+				FontFace={FONT}
+				TextSize={12}
+				Event={{ Activated: () => setComposing(!composing) }}
+			>
+				<Corner Radius={4} />
+			</textbutton>
+			{composing ? (
+				<frame key={"Composer"} Position={UDim2.fromOffset(0, 60)} Size={new UDim2(1, 0, 0, 62)} BackgroundTransparency={1}>
+					<textbox
+						key={"Input"}
+						Size={new UDim2(1, 0, 0, 34)}
+						BackgroundColor3={theme.Search.Color}
+						Text={draft}
+						PlaceholderText={
+							rootEntry
+								? `About the whole ${RemoveExtension(rootEntry.Module.Name, Configs.Extensions.Story)} page (Enter to save)`
+								: "Open a story first"
+						}
+						PlaceholderColor3={theme.Search.Placeholder}
+						TextColor3={theme.Text.Color}
+						FontFace={Font.fromName("GothamSSm", Enum.FontWeight.Regular)}
+						TextSize={13}
+						TextWrapped={true}
+						ClearTextOnFocus={false}
+						TextEditable={rootEntry !== undefined}
+						TextXAlignment={Enum.TextXAlignment.Left}
+						TextYAlignment={Enum.TextYAlignment.Top}
+						Change={{ Text: (box) => setDraft(box.Text) }}
+						Event={{ FocusLost: (_, enter) => enter && savePage() }}
+					>
+						<Corner Radius={4} />
+						<uipadding PaddingLeft={new UDim(0, 6)} PaddingTop={new UDim(0, 4)} PaddingRight={new UDim(0, 6)} />
+					</textbox>
+					<frame key={"Buttons"} Position={UDim2.fromOffset(0, 40)} Size={new UDim2(1, 0, 0, 20)} BackgroundTransparency={1}>
+						<uilistlayout
+							FillDirection={Enum.FillDirection.Horizontal}
+							HorizontalAlignment={Enum.HorizontalAlignment.Right}
+							Padding={new UDim(0, 6)}
+						/>
+						{smallButton("A_Cancel", "Cancel", () => setComposing(false))}
+						{smallButton("B_Save", "Save", savePage, STATUS_COLORS.Done)}
+					</frame>
+				</frame>
+			) : undefined}
 			<frame key={"Filters"} Position={UDim2.fromOffset(0, 30)} Size={new UDim2(1, 0, 0, 22)} BackgroundTransparency={1}>
 				<uilistlayout FillDirection={Enum.FillDirection.Horizontal} Padding={new UDim(0, 6)} SortOrder={Enum.SortOrder.LayoutOrder} />
 				{FILTERS.map((name, index) => (
@@ -347,8 +413,8 @@ function CommentsPanel() {
 			</frame>
 			<scrollingframe
 				key={"List"}
-				Position={UDim2.fromOffset(0, 60)}
-				Size={new UDim2(1, 0, 1, -60)}
+				Position={UDim2.fromOffset(0, listTop)}
+				Size={new UDim2(1, 0, 1, -listTop)}
 				BackgroundTransparency={1}
 				BorderSizePixel={0}
 				ScrollBarThickness={4}

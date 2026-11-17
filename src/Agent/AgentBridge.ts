@@ -10,6 +10,7 @@ import { AgentControlHandle, GetControlHandle } from "./AgentRegistry";
 import { AgentLogEntry, AgentLogSince } from "./AgentLog";
 import { AgentComment, DeleteComments, FindElementByPath, GetComments, GetElementPath, UpdateComment } from "./AgentComments";
 import { ClearFlashes, FlashElement, PushActivity } from "./AgentActivity";
+import { AddPageComment } from "./AgentPageComment";
 import { API_SOURCE } from "./AgentApiSource";
 import {
 	AgentTweak,
@@ -31,7 +32,7 @@ import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.8";
+export const AGENT_BUILD = "2026-11-17.9";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -393,7 +394,9 @@ function CommentToData(comment: AgentComment) {
 		id: comment.Id,
 		story: comment.Story,
 		storyName: comment.StoryName,
-		element: comment.Element,
+		element: comment.Scope === "story" ? undefined : comment.Element,
+		scope: comment.Scope ?? "element",
+		viewport: comment.Viewport ? { width: comment.Viewport.Width, height: comment.Viewport.Height } : undefined,
 		elementClass: comment.ElementClass,
 		elementText: comment.ElementText,
 		rect: comment.Rect,
@@ -859,6 +862,14 @@ export function StartAgentBridge(options: BridgeOptions) {
 			if (!updated) Fail(`resolveTweak: no tweak '${args.id}'`);
 			PushActivity(`${resolved ? "done" : "reopened"}: tweak ${updated.Property}`);
 			return TweakToData(updated);
+		},
+
+		addComment: (args) => {
+			const entry = GetEntry(OptStr(args, "key"));
+			const added = AddPageComment(entry, ReqStr(args, "text"));
+			if (!added) Fail("addComment: text is empty");
+			PushActivity(`page comment: ${added.Text.sub(1, 40)}`);
+			return CommentToData(added);
 		},
 
 		seenComment: (args) => {

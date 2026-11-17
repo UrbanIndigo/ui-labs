@@ -54,6 +54,7 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
 | `ui.logs(since?)` | The last 200 UI Labs warnings plus Output warnings and errors (`since` is an `os.clock()` value) |
 | `ui.comments(opts?)` | Unresolved comments. `opts.story` filters to a story, `opts.all` includes resolved ones |
+| `ui.addComment(text, key?)` | Leaves a page comment on the open story (`scope = "story"`, no element) |
 | `ui.seenComment(id, by?)` / `ui.seenTweak(id, by?)` | Marks an item **Seen** (read) in the user's panel. `by` is your session name, shown as "Seen by ...". `ui.comments({ markSeen = true, by = ... })` marks everything it returns |
 | `ui.claimComment(id, note?)` | Marks a comment **In progress** in the user's panel ("Looking at the grid columns"). Do this before starting work |
 | `ui.resolveComment(id, note?)` | Marks it **Done**, with a note of what changed ("Grid now shows 5 columns on phones"). `ui.resolveComment(id, false)` reopens it |
@@ -190,6 +191,12 @@ every comment and tweak. They're grouped by story, newest first. Each row shows:
 The panel has these filters: **All**, **Open**, **Done** and **This story**. Clicking a row opens its story and
 flashes the element. **Done** / **Reopen** and **✕** (delete) work per row. The panel updates live as agents claim and
 resolve items.
+
+**Page comments:** **+ Page comment** in the panel header leaves a note about the whole open story instead of one
+element. These show "Whole page" in place of an element path, and clicking one opens the story without highlighting
+anything. In `ui.comments()` they have `scope = "story"` and no `element`. Element comments have `scope = "element"`.
+Both kinds carry the story `controls` and the `viewport` size when they were made. Seen, claim and resolve work the
+same for both.
 
 **Agent workflow:**
 1. Read the open items with `ui.comments({ markSeen = true, by = "<session>" })` / `ui.tweaks({ markSeen = true, by = ... })`.

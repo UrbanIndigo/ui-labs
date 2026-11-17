@@ -5,6 +5,7 @@ import {
 	AddComment,
 	AgentComment,
 	CommentsChanged,
+	CurrentViewport,
 	DeleteComments,
 	FindElementByPath,
 	GetComments,
@@ -175,7 +176,9 @@ function CommentElements(props: CommentElementsProps) {
 					Height: math.round(element.AbsoluteSize.Y / zoom)
 				},
 				Text: body,
-				Controls: handle ? FlattenControls(handle.Values) : undefined
+				Controls: handle ? FlattenControls(handle.Values) : undefined,
+				Scope: "element",
+				Viewport: CurrentViewport()
 			});
 		}
 		setDraft(undefined);

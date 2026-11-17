@@ -8,7 +8,9 @@ export interface AgentComment {
 	Id: string;
 	Story: string; // story module full name
 	StoryName: string;
-	Element: string; // path from the story root, e.g. "SellWindow/Tabs/Frame[2]"
+	Element: string; // path from the story root, e.g. "SellWindow/Tabs/Frame[2]"; "" for a page comment
+	Scope?: "element" | "story"; // "story" = about the whole page, no element
+	Viewport?: { Width: number; Height: number }; // viewport size when it was made
 	ElementClass: string;
 	ElementText?: string;
 	Rect: { X: number; Y: number; Width: number; Height: number }; // relative to the story root, unscaled by zoom
@@ -48,6 +50,15 @@ function Save(list: AgentComment[]) {
 	cache = list;
 	if (pluginRef) pcall(() => pluginRef!.SetSetting(SETTING_KEY, list));
 	CommentsChanged.Fire();
+}
+
+/** Viewport size now (for recording which layout a comment/tweak was made on). */
+export function CurrentViewport() {
+	const camera = game.GetService("Workspace").CurrentCamera;
+	return {
+		Width: camera ? math.round(camera.ViewportSize.X) : 0,
+		Height: camera ? math.round(camera.ViewportSize.Y) : 0
+	};
 }
 
 export function AddComment(comment: Omit<AgentComment, "Id" | "Created" | "Resolved">) {
