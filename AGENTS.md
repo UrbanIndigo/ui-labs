@@ -36,7 +36,8 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 |---|---|
 | `ui.status()` | Version, whether the window is open, the story count, mounted stories (with controls and capture info), the unresolved comment count and the capture presets |
 | `ui.list(filter?)` | `{ path, name, storybook }` for every story; `filter` is a substring of the full path |
-| `ui.open(story, opts?)` | Mounts a story in the main panel (replacing what's there) and waits for it to render. Returns its key, controls, capture info and the `logs` produced while mounting |
+| `ui.open(story, opts?)` | Opens the AI Labs window and shows the story in its main tab. If that story is already open it's reused, keeping its control values (`fresh = true` remounts it); otherwise the tab switches to it. Waits for it to render. Returns its key, controls, capture info and the `logs` produced while mounting |
+| `ui.click(path \| { x, y }, opts?)` | Targets an element in the story (path, or a point relative to the story root). For a TextBox, `opts.text` types into it and fires FocusLost (Enter unless `submit = false`). For a button it returns `{ clicked = false, reason }` and shows the user an "AI: please click here" ring for 5 s, because Studio won't let plugins press buttons in Edit mode. Use story controls to change state |
 | `ui.set(controls, key?)` | Sets controls by name (groups as nested tables), validated and coerced, then waits for the re-render |
 | `ui.controls(key?)` | Each control's `type` and `value`, plus `options` for Choose/EnumList and `min`/`max`/`step` for Slider |
 | `ui.reload(key?)` | Hot-reloads the story; returns logs |
@@ -56,6 +57,17 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.resolveComment(id, resolved?)` | Marks a comment done (or undone) |
 | `ui.deleteComments({ id = ... } \| { story = ... } \| { resolved = true } \| { all = true })` | Deletes comments |
 
+**The user sees what the agent does.** Agents drive the same AI Labs window the user is looking at, never a hidden
+copy or a pile of tabs:
+- `ui.open` opens the window and switches its one main tab.
+- `ui.set` changes the values in the Controls panel the user sees.
+- A pink **AI** pill at the top of the window says what happened ("AI: set tab = gear", "AI: capturing at 750×381",
+  "AI: wants you to click Sell").
+- A short pink ring labelled AI marks elements the agent targets (`ui.tree({ path })`, `ui.tweak`, `ui.click`).
+  Rings are cleared before a capture, so they never end up in a screenshot.
+
+Other sessions may drive the same window. Check `ui.status().mounted` before assuming your story is still open.
+
 **Story names** can be a full name (`StarterPlayer.StarterPlayerScripts.TS.ui.crops.sell-page`), a source path
 (`src/client/ui/crops/sell-page.story.tsx`), a partial path (`crops/sell-page`), a bare name (`sell-page`) or the
 ModuleScript itself. Matching compares trailing path segments. An ambiguous name is an error that lists the candidates.
@@ -64,9 +76,10 @@ ModuleScript itself. Matching compares trailing path segments. An ambiguous name
 - `controls`: control values to set once it mounts.
 - `capture`: same values as `ui.capture`.
 - `background` / `backgroundTransparency`: the capture backdrop.
-- `widget = true`: mounts in its own dock window instead of the main panel. The result's `key` addresses it; close it
+- `widget = true`: mounts in its own dock window instead of the main panel (avoid this: the user isn't looking there). The result's `key` addresses it; close it
   with `ui.close(key)`.
-- `show = true`: opens the AI Labs window too.
+- `show = false`: leaves the window closed (headless).
+- `fresh = true`: remounts even if the story is already open.
 - `timeout`: seconds to wait for the mount (default 8).
 
 **Control values:**

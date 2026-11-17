@@ -3,6 +3,7 @@ import { useSelector } from "@rbxts/react-reflex";
 import { selectPopup } from "Reflex/Overlay";
 import { Div } from "UI/Styles/Div";
 
+import AIActivity from "./AIActivity";
 import DescriptionDisplay from "./DescriptionDisplay";
 import MouseIconActions from "./MouseIconActions";
 
@@ -20,6 +21,7 @@ function OverlayControl(setprops: OverlayControlProps) {
 		<Div key="Overlays" ZIndex={4}>
 			<DescriptionDisplay key={"DescriptionDisplay"} />
 			<MouseIconActions />
+			<AIActivity />
 			{popup ? popup.Element : undefined}
 		</Div>
 	);

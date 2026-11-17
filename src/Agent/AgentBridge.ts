@@ -3,11 +3,13 @@ import { RemoveExtension } from "Hooks/Reflex/Control/ModuleList/Utils";
 import Configs from "Plugin/Configs";
 import { RootProducer } from "Reflex";
 import { GetEntryByKey } from "Reflex/StoryPreview";
+import { GetGuisAtPosition } from "UI/StoryPanel/StoryTools/SelectElements/Utils";
 import { ReloadEntry } from "UI/StoryPreview/Utils";
 
 import { AgentControlHandle, GetControlHandle } from "./AgentRegistry";
 import { AgentLogEntry, AgentLogSince } from "./AgentLog";
-import { AgentComment, DeleteComments, FindElementByPath, GetComments, UpdateComment } from "./AgentComments";
+import { AgentComment, DeleteComments, FindElementByPath, GetComments, GetElementPath, UpdateComment } from "./AgentComments";
+import { ClearFlashes, FlashElement, PushActivity } from "./AgentActivity";
 import { API_SOURCE } from "./AgentApiSource";
 import {
 	AgentTweak,
@@ -29,7 +31,7 @@ import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.5";
+export const AGENT_BUILD = "2026-11-17.6";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -580,7 +582,10 @@ export function StartAgentBridge(options: BridgeOptions) {
 		open: (args) => {
 			const since = os.clock();
 			const module = FindStory(ReqStory(args));
-			if (args.show === true) options.DockWidget.Enabled = true;
+			// agents work in the user's own AI Labs window so they can see what happens (show = false to stay hidden)
+			if (OptBool(args, "show") !== false) options.DockWidget.Enabled = true;
+			const root = RootProducer.getState().storyPreview.mountPreviews.get(Configs.RootPreviewKey);
+			const reuse = args.widget !== true && OptBool(args, "fresh") !== true && root !== undefined && root.Module === module;
 
 			let key: string;
 			if (args.widget === true) {
@@ -592,8 +597,12 @@ export function StartAgentBridge(options: BridgeOptions) {
 					if (!before.has(e.UID)) found = e.Key;
 				});
 				key = found!;
+			} else if (reuse) {
+				// already open in the user's tab: keep it (and its control values); fresh = true remounts
+				key = Configs.RootPreviewKey;
+				RootProducer.selectStory(Configs.RootPreviewKey);
 			} else {
-				// replace whatever is in the main panel (always remount, so the story is fresh)
+				// switch the main tab to this story (never piles up tabs)
 				RootProducer.unmountStory(Configs.RootPreviewKey);
 				Settle(2);
 				RootProducer.mountStory(module, false);
@@ -601,6 +610,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 				key = Configs.RootPreviewKey;
 			}
 			lastKey = key;
+			PushActivity(`${reuse ? "using" : "opened"} ${StoryName(module)}`);
 			WaitForMount(key, since, OptNum(args, "timeout") ?? 8);
 
 			const controls = OptTable(args, "controls");
@@ -611,6 +621,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		close: (args) => {
+			PushActivity("closed the story");
 			if (args.key === "all") {
 				RootProducer.getState().storyPreview.mountPreviews.forEach((e) => RootProducer.unmountByUID(e.UID));
 			} else {
@@ -631,6 +642,9 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const key = ResolveKey(args);
 			SetControls(key, ReqTable(args, "controls"));
 			const handle = GetControlHandle(key)!;
+			const shown: string[] = [];
+			for (const [name, value] of pairs(ReqTable(args, "controls"))) shown.push(`${name} = ${tostring(value)}`);
+			PushActivity(`set ${shown.join(", ")}`);
 			return { controls: DescribeControls(handle.Controls, handle.Values), logs: FormatLogs(AgentLogSince(since)) };
 		},
 
@@ -638,6 +652,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const since = os.clock();
 			const entry = GetEntry(OptStr(args, "key"));
 			const oldHandle = GetControlHandle(entry.Key);
+			PushActivity(`reloaded ${StoryName(entry.Module)}`);
 			ReloadEntry(entry);
 			WaitUntil(() => GetControlHandle(entry.Key) !== oldHandle, 5);
 			WaitForMount(entry.Key, since, 5);
@@ -646,9 +661,21 @@ export function StartAgentBridge(options: BridgeOptions) {
 
 		capture: (args) => {
 			const key = ResolveKey(args);
+			ClearFlashes();
 			SetCapture(key, args.capture ?? "fill", args);
 			const entry = GetEntry(key);
-			return CaptureInfo(entry) ?? { capture: false };
+			const info = CaptureInfo(entry);
+			if (info) {
+				const size = info.size;
+				PushActivity(
+					typeIs(size, "table")
+						? `capturing at ${(size as { width: number }).width}×${(size as { height: number }).height}`
+						: "capturing (full viewport)"
+				);
+			} else {
+				PushActivity("back to the AI Labs window");
+			}
+			return info ?? { capture: false };
 		},
 
 		zoom: (args) => {
@@ -667,6 +694,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 				const found = FindElementByPath(entry.Holder, ReqStr(args, "path"));
 				if (!found) Fail(`no element at '${args.path}'`);
 				root = found;
+				if (OptBool(args, "flash") !== false && found.IsA("GuiObject")) FlashElement(found, entry.ListenerFrame);
 			}
 			return DescribeTree(root, OptNum(args, "depth") ?? 6, OptNum(args, "maxNodes") ?? 400);
 		},
@@ -716,6 +744,8 @@ export function StartAgentBridge(options: BridgeOptions) {
 			if (value === undefined || typeOf(value) !== typeOf(current))
 				Fail(`tweak: '${tostring(args.value)}' isn't a valid ${typeOf(current)} (current ${FormatValue(current)})`);
 			if (!WriteProperty(instance, property, value)) Fail(`tweak: couldn't set ${property}`);
+			if (element.IsA("GuiObject")) FlashElement(element, entry.ListenerFrame, `AI: ${property}`);
+			PushActivity(`tweaked ${element.Name}.${property} = ${FormatValue(value)}`);
 			const camera = Workspace.CurrentCamera;
 			const handle = GetControlHandle(entry.Key);
 			const flat: Record<string, string> = {};
@@ -738,6 +768,53 @@ export function StartAgentBridge(options: BridgeOptions) {
 					Mode: "agent"
 				})
 			);
+		},
+
+		click: (args) => {
+			const entry = GetEntry(OptStr(args, "key"));
+			const holder = entry.Holder;
+			if (!holder) Fail("click: story has no holder yet");
+			let target: Instance | undefined;
+			const path = OptStr(args, "element");
+			if (path !== undefined) {
+				target = FindElementByPath(holder, path);
+				if (!target) Fail(`click: no element at '${path}'`);
+			} else {
+				const x = OptNum(args, "x");
+				const y = OptNum(args, "y");
+				if (x === undefined || y === undefined) Fail("click: pass element = path, or x and y (relative to the story)");
+				target = GetGuisAtPosition(holder, holder.AbsolutePosition.add(new Vector2(x, y)))[0];
+				if (!target) Fail(`click: nothing at ${x}, ${y}`);
+			}
+			// the nearest button or text box at or above the target
+			let control: Instance | undefined = target;
+			while (control && control !== holder && !control.IsA("GuiButton") && !control.IsA("TextBox")) {
+				control = control.Parent;
+			}
+			const shownName = (gui: Instance) =>
+				gui.IsA("TextButton") || gui.IsA("TextLabel") || gui.IsA("TextBox") ? `${gui.Name} "${gui.ContentText}"` : gui.Name;
+			const text = OptStr(args, "text");
+			if (control && control.IsA("TextBox")) {
+				FlashElement(control, entry.ListenerFrame, "AI: typing");
+				if (text !== undefined) {
+					control.Text = text;
+					control.CaptureFocus();
+					control.ReleaseFocus(OptBool(args, "submit") ?? true);
+				}
+				PushActivity(text !== undefined ? `typed "${text}" into ${control.Name}` : `focused ${control.Name}`);
+				Settle(3);
+				return { clicked: true, element: GetElementPath(holder, control), class: "TextBox", text: control.Text };
+			}
+			const flashTarget = (control && control !== holder ? control : target) as GuiObject;
+			FlashElement(flashTarget, entry.ListenerFrame, "AI: please click here", 5);
+			PushActivity(`wants you to click ${shownName(flashTarget)}`);
+			return {
+				clicked: false,
+				element: GetElementPath(holder, flashTarget),
+				class: flashTarget.ClassName,
+				reason:
+					"Studio doesn't let plugins press buttons in Edit mode (VirtualInputManager needs RobloxScript), so it's highlighted for the user to click. Prefer story controls for state, or type into TextBoxes with text = ..."
+			};
 		},
 
 		resolveTweak: (args) => {

@@ -10,6 +10,7 @@ Drive the AI Labs agent bridge from the shell through a Studio MCP client.
     python3 ailabs.py comments [--story <story>] [--all]
     python3 ailabs.py shot [<story>] [--controls '<json>'] [--capture fill|phone|tablet|laptop|desktop|WxH]
                          [--crop content|frame|none] [--out shot.png]
+    python3 ailabs.py click <element path | x,y> [--text "typed text"]
     python3 ailabs.py close [--all]
 
 It runs Luau through `execute_luau` and screenshots with `screen_capture` using the command in $UILABS_STUDIO
@@ -140,6 +141,14 @@ def main():
         result = call("tree", {"depth": int(flag(args, "--depth", 6))})
     elif cmd == "comments":
         result = call("comments", {"story": flag(args, "--story"), "all": flag(args, "--all", boolean=True)})
+    elif cmd == "click":
+        target = args[0]
+        m = re.fullmatch(r"(-?\d+),(-?\d+)", target)
+        payload = {"x": int(m[1]), "y": int(m[2])} if m else {"element": target}
+        text = flag(args, "--text")
+        if text is not None:
+            payload["text"] = text
+        result = call("click", payload)
     elif cmd == "close":
         result = call("close", {"key": "all" if flag(args, "--all", boolean=True) else None})
     elif cmd == "shot":

@@ -25,7 +25,8 @@ function ui.status() return call("status") end
 function ui.list(filter: string?) return call("list", { filter = filter }) end
 -- open the AI Labs window (true) or close it (false); nil just reports
 function ui.window(open: boolean?) return call("window", { open = open }) end
--- opts: widget (own window), show (open AI Labs window), controls, capture (preset/Vector2/{width,height}),
+-- Works in the user's AI Labs window (opens it; show = false keeps it closed). Reuses the open tab when it's the
+-- same story (fresh = true remounts), otherwise switches it. opts: widget (own window, avoid), controls, capture (preset/Vector2/{width,height}),
 --       background (Color3), backgroundTransparency, timeout
 -- also accepts ui.open({ story = ..., controls = ... })
 function ui.open(story: any, opts: { [string]: any }?)
@@ -65,6 +66,15 @@ function ui.resolveComment(id: string, resolved: boolean?) return call("resolveC
 function ui.tweaks(opts: { [string]: any }?) return call("tweaks", opts or {}) end
 -- apply + record a tweak from a script: ui.tweak({ element = path, property = "TextSize", value = 24, target = "" })
 function ui.tweak(opts: { [string]: any }) return call("tweak", opts) end
+-- click an element in the story: { element = path } or { x = , y = } (relative to the story root).
+-- TextBoxes: pass text = "..." to type it (submit = false to not fire FocusLost as Enter). Buttons can't be pressed
+-- from Edit mode, so they get an "AI: please click here" highlight for the user and { clicked = false, reason }.
+function ui.click(target: any, opts: { [string]: any }?)
+	local args = table.clone(opts or {})
+	if typeof(target) == "string" then args.element = target
+	elseif typeof(target) == "table" then for k, v in target do args[k] = v end end
+	return call("click", args)
+end
 function ui.resolveTweak(id: string, resolved: boolean?) return call("resolveTweak", { id = id, resolved = resolved }) end
 -- opts: { id = ... } | { story = ... } | { resolved = true } | { all = true }; restore = false keeps the tweaked values
 function ui.clearTweaks(opts: { [string]: any }) return call("clearTweaks", opts) end
