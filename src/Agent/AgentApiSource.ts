@@ -47,12 +47,19 @@ function ui.reload(key: string?) return call("reload", { key = key }) end
 -- capture: preset name ("fill", "phone", "phonePortrait", "tablet", "laptop", "desktop"), Vector2, {width, height},
 -- or false to put the story back in the AI Labs window
 function ui.capture(capture: any?, opts: { [string]: any }?)
+	if typeof(capture) == "table" and opts == nil and capture.width == nil and capture[1] == nil then
+		opts = capture
+		capture = opts.capture
+	end
 	local args = table.clone(opts or {})
 	args.capture = if capture == nil then "fill" else capture
 	return call("capture", args)
 end
 -- turn on a tool: "select" (Select Elements), "comment" (Comment For AI), "tweak" (Tweak Properties) or "none"
 function ui.tool(name: string?) return call("tool", { name = name }) end
+-- GUI inset overlay: Roblox top bar band + phone safe areas over the story (true/false). ui.capture(size, { inset = true })
+-- and ui.open(story, { inset = true }) turn it on too. Stories read it via Environment.GetEnvGlobalInjection().GetGuiInset()
+function ui.inset(on: boolean?, key: string?) return call("inset", { on = if on == nil then true else on, key = key }) end
 function ui.zoom(zoom: number?, key: string?) return call("zoom", { zoom = zoom, key = key, reset = true }) end
 -- GUI tree of the story (names, classes, rects relative to the story root, texts, images)
 function ui.tree(opts: { [string]: any }?) return call("tree", opts or {}) end

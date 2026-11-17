@@ -11,6 +11,7 @@ import { AgentLogEntry, AgentLogSince } from "./AgentLog";
 import { AgentComment, DeleteComments, FindElementByPath, GetComments, GetElementPath, UpdateComment } from "./AgentComments";
 import { ClearFlashes, FlashElement, PushActivity } from "./AgentActivity";
 import { AddPageComment } from "./AgentPageComment";
+import { GetSimulatedInset } from "./AgentInset";
 import { API_SOURCE } from "./AgentApiSource";
 import {
 	AgentTweak,
@@ -32,7 +33,7 @@ import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.10";
+export const AGENT_BUILD = "2026-11-17.11";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -370,6 +371,27 @@ function DescribeTree(root: Instance, maxDepth: number, maxNodes: number) {
 	return { tree, nodes: count, truncated: count >= maxNodes };
 }
 
+function InsetData(entry: PreviewEntry) {
+	const inset = GetSimulatedInset(entry);
+	if (!inset) return undefined;
+	return {
+		device: inset.Device,
+		topbar: inset.TopbarHeight,
+		safeArea: {
+			left: inset.SafeArea.Left,
+			right: inset.SafeArea.Right,
+			top: inset.SafeArea.Top,
+			bottom: inset.SafeArea.Bottom
+		},
+		size: { width: math.round(inset.Size.X), height: math.round(inset.Size.Y) }
+	};
+}
+
+function SetInset(key: string, on: boolean) {
+	RootProducer.updateMountData(key, (old) => ({ ...old, ShowInset: on }));
+	Settle(3);
+}
+
 function SummarizeEntry(entry: PreviewEntry) {
 	const handle = GetControlHandle(entry.Key);
 	return {
@@ -380,6 +402,7 @@ function SummarizeEntry(entry: PreviewEntry) {
 		onWidget: entry.OnWidget,
 		onViewport: entry.OnViewport,
 		capture: CaptureInfo(entry),
+		inset: InsetData(entry),
 		mounted: entry.Holder !== undefined && !entry.Holder.GetChildren().isEmpty(),
 		controls: handle ? DescribeControls(handle.Controls, handle.Values) : undefined
 	};
@@ -626,6 +649,8 @@ export function StartAgentBridge(options: BridgeOptions) {
 
 			const controls = OptTable(args, "controls");
 			if (controls !== undefined) SetControls(key, controls);
+			const openInset = OptBool(args, "inset");
+			if (openInset !== undefined) SetInset(key, openInset);
 			if (args.capture !== undefined && args.capture !== false) SetCapture(key, args.capture, args);
 
 			return { ...SummarizeEntry(GetEntry(key)), logs: FormatLogs(AgentLogSince(since)) };
@@ -673,6 +698,8 @@ export function StartAgentBridge(options: BridgeOptions) {
 		capture: (args) => {
 			const key = ResolveKey(args);
 			ClearFlashes();
+			const insetArg = OptBool(args, "inset");
+			if (insetArg !== undefined) SetInset(key, insetArg);
 			SetCapture(key, args.capture ?? "fill", args);
 			const entry = GetEntry(key);
 			const info = CaptureInfo(entry);
@@ -687,6 +714,14 @@ export function StartAgentBridge(options: BridgeOptions) {
 				PushActivity("back to the AI Labs window");
 			}
 			return info ?? { capture: false };
+		},
+
+		inset: (args) => {
+			const key = ResolveKey(args);
+			const on = OptBool(args, "on") ?? true;
+			SetInset(key, on);
+			PushActivity(on ? "showing the GUI inset" : "hid the GUI inset");
+			return { inset: InsetData(GetEntry(key)) ?? false };
 		},
 
 		zoom: (args) => {

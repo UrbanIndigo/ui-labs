@@ -20,6 +20,7 @@ declare global {
 		OnViewport: boolean;
 		// Agent capture: when set (with OnViewport), the viewport holder renders into a non-archivable StarterGui
 		// ScreenGui (Studio's screen_capture sees StarterGui, not CoreGui), framed at Size (fit to the viewport).
+		ShowInset?: boolean; // draw the simulated Roblox top bar + safe areas over the story
 		Capture?: { Size?: Vector2; Background?: Color3; BackgroundTransparency?: number };
 		Visible: boolean;
 		AutoReload: boolean;

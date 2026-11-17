@@ -3,6 +3,7 @@ import React from "@rbxts/react";
 import CommentTool from "./Buttons.tsx/CommentTool";
 import Explorer from "./Buttons.tsx/Explorer";
 import FullscreenMode from "./Buttons.tsx/FullscreenMode";
+import GuiInset from "./Buttons.tsx/GuiInset";
 import LightBackground from "./Buttons.tsx/LightBackground";
 import MeasureTool from "./Buttons.tsx/MeasureTool";
 import MouseRules from "./Buttons.tsx/MouseRules";
@@ -39,6 +40,7 @@ export const ToolButtonsList = [
 	{ Name: "ViewOnViewport", Render: Viewport, DisplayName: "View On Viewport" },
 	{ Name: "ViewOnExplorer", Render: Explorer, DisplayName: "View On Explorer" },
 	{ Name: "FullscreenMode", Render: FullscreenMode, DisplayName: "Fullscreen Mode" },
+	{ Name: "GuiInset", Render: GuiInset, DisplayName: "GUI Inset" },
 	{ Name: "LightBackground", Render: LightBackground, DisplayName: "Invert Background" },
 	{ Name: "MeasureTool", Render: MeasureTool, DisplayName: "Measure Tool" },
 	{ Name: "SelectElements", Render: SelectElements, DisplayName: "Select Elements" },

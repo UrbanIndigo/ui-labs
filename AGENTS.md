@@ -49,6 +49,7 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.claimTweak(id, note?)` / `ui.resolveTweak(id, note?)` | The same for tweaks. Resolving stops re-applying it (the code has the value now) |
 | `ui.clearTweaks({ id \| story \| resolved = true \| all = true, restore? })` | Deletes tweaks. By default it puts the original values back on mounted stories |
 | `ui.showOriginal(true \| false)` | Shows the untweaked values, or the tweaked ones again |
+| `ui.inset(on?, key?)` | Turns the GUI inset overlay on or off (below). `ui.open(story, { inset = true })` and `ui.capture("phone", { inset = true })` do the same. `ui.status().mounted[i].inset` gives `{ device, topbar, safeArea, size }` |
 | `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
 | `ui.window(open?)` | Opens (`true`) or closes (`false`) the AI Labs window |
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
@@ -207,6 +208,30 @@ same for both.
 4. `ui.resolveComment(id, "what you changed")`.
 
 The user sees each step in the panel and in the AI activity pill.
+
+## GUI inset overlay
+
+The **GUI Inset** toolbar button (expand icon, Shift+G), or `ui.inset()`, draws what a real client puts over the
+screen. It's drawn on top of the story, doesn't take clicks, and shows up in captures:
+- **The Roblox top bar band:** 58 px. On desktop it uses `GuiService.TopbarInset.Height` when Studio reports one, and
+  58 when it doesn't. It has translucent mock buttons: logo, menu and chat on the left, settings on the right.
+- **Phone landscape** (preview at most 1000×450, e.g. `"phone"` 750×381): the notch and rounded-corner safe areas,
+  44 px on the left and right, and the home indicator, 21 px at the bottom.
+- **Phone portrait** (taller than wide and at most 500 wide): a 47 px notch at the top and a 34 px home indicator.
+
+The preview size is the capture frame when capturing, otherwise the story area at 100% zoom.
+
+**Story code can't see it through GuiService.** A plugin can't override `GuiService:GetGuiInset()` or `TopbarInset`.
+Instead, the story environment gets `GetGuiInset()`, which returns
+`{ Device, Size, TopbarHeight, SafeArea, GuiInsetTopLeft, GuiInsetBottomRight }` while the overlay is on and `nil`
+otherwise, and `GuiInsetChanged`, a signal. A game's inset hook can prefer it inside stories:
+
+```ts
+import { Environment } from "@rbxts/ui-labs";
+const injection = Environment.GetEnvGlobalInjection() as { GetGuiInset?: () => { GuiInsetTopLeft: Vector2 } | undefined } | undefined;
+const simulated = injection?.GetGuiInset?.();
+const topLeft = simulated ? simulated.GuiInsetTopLeft : GuiService.GetGuiInset()[0];
+```
 
 ## Shell helper
 
