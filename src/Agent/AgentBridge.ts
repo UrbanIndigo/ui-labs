@@ -15,7 +15,7 @@ import { API_SOURCE } from "./AgentApiSource";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.3";
+export const AGENT_BUILD = "2026-11-17.4";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -388,6 +388,54 @@ function CommentToData(comment: AgentComment) {
 	};
 }
 
+// ---------------------------------------------------------------------------------------------------- argument checks
+
+let currentCommand = "?";
+
+function ArgFail(name: string, expected: string, value: unknown): never {
+	Fail(`${currentCommand}: expected ${expected} for '${name}', got ${typeOf(value)}`);
+}
+function OptStr(args: Args, name: string) {
+	const value = args[name];
+	if (value === undefined || typeIs(value, "string")) return value as string | undefined;
+	ArgFail(name, "a string", value);
+}
+function ReqStr(args: Args, name: string) {
+	const value = OptStr(args, name);
+	if (value === undefined) ArgFail(name, "a string", value);
+	return value;
+}
+function OptNum(args: Args, name: string) {
+	const value = args[name];
+	if (value === undefined || typeIs(value, "number")) return value as number | undefined;
+	ArgFail(name, "a number", value);
+}
+function OptBool(args: Args, name: string) {
+	const value = args[name];
+	if (value === undefined || typeIs(value, "boolean")) return value as boolean | undefined;
+	ArgFail(name, "a boolean", value);
+}
+function OptColor(args: Args, name: string) {
+	const value = args[name];
+	if (value === undefined || typeIs(value, "Color3")) return value as Color3 | undefined;
+	ArgFail(name, "a Color3", value);
+}
+function ReqTable(args: Args, name: string) {
+	const value = args[name];
+	if (typeIs(value, "table")) return value as Record<string, unknown>;
+	ArgFail(name, "a table", value);
+}
+function OptTable(args: Args, name: string) {
+	if (args[name] === undefined) return undefined;
+	return ReqTable(args, name);
+}
+function ReqStory(args: Args): string | ModuleScript {
+	const value = args.story;
+	if (typeIs(value, "string") && value !== "") return value;
+	if (typeIs(value, "Instance") && value.IsA("ModuleScript")) return value;
+	ArgFail("story", "a story name/path string or ModuleScript", value);
+}
+
 // ---------------------------------------------------------------------------------------------------- commands
 
 function WaitForMount(key: string, since: number, timeout: number) {
@@ -407,15 +455,15 @@ function SetCapture(key: string, capture: unknown, args: Args) {
 	const size = GetCaptureSize(capture);
 	RootProducer.updateMountData(key, (old) => {
 		if (size === false) {
-			return { ...old, Capture: undefined, OnViewport: (args.viewport as boolean | undefined) ?? false };
+			return { ...old, Capture: undefined, OnViewport: OptBool(args, "viewport") ?? false };
 		}
 		return {
 			...old,
 			OnViewport: true,
 			Capture: {
 				Size: size,
-				Background: args.background as Color3 | undefined,
-				BackgroundTransparency: args.backgroundTransparency as number | undefined
+				Background: OptColor(args, "background"),
+				BackgroundTransparency: OptNum(args, "backgroundTransparency")
 			}
 		};
 	});
@@ -436,7 +484,7 @@ function SetControls(key: string, changes: Record<string, unknown>) {
 }
 
 function ResolveKey(args: Args) {
-	const entry = GetEntry(args.key as string | undefined);
+	const entry = GetEntry(OptStr(args, "key"));
 	return entry.Key;
 }
 
@@ -462,7 +510,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		list: (args) => {
-			const filter = (args.filter as string | undefined)?.lower();
+			const filter = OptStr(args, "filter")?.lower();
 			const out: defined[] = [];
 			for (const module of GetStoryModules()) {
 				const path = StoryPath(module);
@@ -473,7 +521,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		tool: (args) => {
-			const name = (args.name as string | undefined) ?? "none";
+			const name = OptStr(args, "name") ?? "none";
 			if (name !== "select" && name !== "comment" && name !== "none") Fail("tool must be select, comment or none");
 			RootProducer.setSelectTool(name === "select");
 			RootProducer.setCommentTool(name === "comment");
@@ -482,13 +530,13 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		window: (args) => {
-			if (args.open !== undefined) options.DockWidget.Enabled = args.open as boolean;
+			if (args.open !== undefined) options.DockWidget.Enabled = OptBool(args, "open")!;
 			return { windowOpen: options.DockWidget.Enabled };
 		},
 
 		open: (args) => {
 			const since = os.clock();
-			const module = FindStory(args.story as string);
+			const module = FindStory(ReqStory(args));
 			if (args.show === true) options.DockWidget.Enabled = true;
 
 			let key: string;
@@ -510,9 +558,10 @@ export function StartAgentBridge(options: BridgeOptions) {
 				key = Configs.RootPreviewKey;
 			}
 			lastKey = key;
-			WaitForMount(key, since, (args.timeout as number | undefined) ?? 8);
+			WaitForMount(key, since, OptNum(args, "timeout") ?? 8);
 
-			if (args.controls !== undefined) SetControls(key, args.controls as Record<string, unknown>);
+			const controls = OptTable(args, "controls");
+			if (controls !== undefined) SetControls(key, controls);
 			if (args.capture !== undefined && args.capture !== false) SetCapture(key, args.capture, args);
 
 			return { ...SummarizeEntry(GetEntry(key)), logs: FormatLogs(AgentLogSince(since)) };
@@ -522,14 +571,14 @@ export function StartAgentBridge(options: BridgeOptions) {
 			if (args.key === "all") {
 				RootProducer.getState().storyPreview.mountPreviews.forEach((e) => RootProducer.unmountByUID(e.UID));
 			} else {
-				RootProducer.unmountByUID(GetEntry(args.key as string | undefined).UID);
+				RootProducer.unmountByUID(GetEntry(OptStr(args, "key")).UID);
 			}
 			Settle(2);
 			return { closed: true };
 		},
 
 		controls: (args) => {
-			const entry = GetEntry(args.key as string | undefined);
+			const entry = GetEntry(OptStr(args, "key"));
 			const handle = GetControlHandle(entry.Key);
 			return handle ? DescribeControls(handle.Controls, handle.Values) : {};
 		},
@@ -537,14 +586,14 @@ export function StartAgentBridge(options: BridgeOptions) {
 		set: (args) => {
 			const since = os.clock();
 			const key = ResolveKey(args);
-			SetControls(key, args.controls as Record<string, unknown>);
+			SetControls(key, ReqTable(args, "controls"));
 			const handle = GetControlHandle(key)!;
 			return { controls: DescribeControls(handle.Controls, handle.Values), logs: FormatLogs(AgentLogSince(since)) };
 		},
 
 		reload: (args) => {
 			const since = os.clock();
-			const entry = GetEntry(args.key as string | undefined);
+			const entry = GetEntry(OptStr(args, "key"));
 			const oldHandle = GetControlHandle(entry.Key);
 			ReloadEntry(entry);
 			WaitUntil(() => GetControlHandle(entry.Key) !== oldHandle, 5);
@@ -561,28 +610,28 @@ export function StartAgentBridge(options: BridgeOptions) {
 
 		zoom: (args) => {
 			const key = ResolveKey(args);
-			RootProducer.setZoom(key, (args.zoom as number | undefined) ?? 100);
+			RootProducer.setZoom(key, OptNum(args, "zoom") ?? 100);
 			if (args.reset === true) RootProducer.setMountData(key, { Offset: Vector2.zero });
 			Settle(2);
 			return { zoom: GetEntry(key).Zoom };
 		},
 
 		tree: (args) => {
-			const entry = GetEntry(args.key as string | undefined);
+			const entry = GetEntry(OptStr(args, "key"));
 			if (!entry.Holder) Fail("story has no holder yet");
 			let root: Instance = entry.Holder;
 			if (args.path !== undefined) {
-				const found = FindElementByPath(entry.Holder, args.path as string);
+				const found = FindElementByPath(entry.Holder, ReqStr(args, "path"));
 				if (!found) Fail(`no element at '${args.path}'`);
 				root = found;
 			}
-			return DescribeTree(root, (args.depth as number | undefined) ?? 6, (args.maxNodes as number | undefined) ?? 400);
+			return DescribeTree(root, OptNum(args, "depth") ?? 6, OptNum(args, "maxNodes") ?? 400);
 		},
 
-		logs: (args) => FormatLogs(AgentLogSince((args.since as number | undefined) ?? 0)),
+		logs: (args) => FormatLogs(AgentLogSince(OptNum(args, "since") ?? 0)),
 
 		comments: (args) => {
-			const story = args.story as string | undefined;
+			const story = OptStr(args, "story");
 			let module: ModuleScript | undefined;
 			if (story !== undefined) module = FindStory(story);
 			return GetComments()
@@ -592,14 +641,14 @@ export function StartAgentBridge(options: BridgeOptions) {
 		},
 
 		resolveComment: (args) => {
-			const updated = UpdateComment(args.id as string, { Resolved: (args.resolved as boolean | undefined) ?? true });
+			const updated = UpdateComment(ReqStr(args, "id"), { Resolved: OptBool(args, "resolved") ?? true });
 			if (!updated) Fail(`no comment '${args.id}'`);
 			return CommentToData(updated);
 		},
 
 		deleteComments: (args) => {
-			const id = args.id as string | undefined;
-			const story = args.story as string | undefined;
+			const id = OptStr(args, "id");
+			const story = OptStr(args, "story");
 			const removed = DeleteComments((c) => {
 				if (id !== undefined) return c.Id === id;
 				if (story !== undefined) return c.Story === story || c.StoryName === story;
@@ -628,6 +677,8 @@ export function StartAgentBridge(options: BridgeOptions) {
 			options.EnsureRoot();
 			// the story list fills a few frames after the app mounts
 			WaitUntil(() => GetStoryModules().size() > 0, 3);
+			currentCommand = command as string;
+			if (args !== undefined && !typeIs(args, "table")) Fail(`${currentCommand}: arguments must be a table`);
 			return handler((args ?? {}) as Args);
 		});
 		if (!ok) return { ok: false, error: tostring(result) };

@@ -6,6 +6,9 @@ export const API_SOURCE = `--!strict
 local invoke = script.Parent:WaitForChild("Invoke") :: BindableFunction
 
 local function call(command: string, args: any?): any
+	if args ~= nil and typeof(args) ~= "table" then
+		error("[AI Labs] " .. command .. ": arguments must be a table", 2)
+	end
 	local response = invoke:Invoke(command, args or {})
 	if not response.ok then
 		error("[AI Labs] " .. tostring(response.error), 2)
@@ -24,9 +27,15 @@ function ui.list(filter: string?) return call("list", { filter = filter }) end
 function ui.window(open: boolean?) return call("window", { open = open }) end
 -- opts: widget (own window), show (open AI Labs window), controls, capture (preset/Vector2/{width,height}),
 --       background (Color3), backgroundTransparency, timeout
-function ui.open(story: string | ModuleScript, opts: { [string]: any }?)
-	local args = table.clone(opts or {})
-	args.story = story
+-- also accepts ui.open({ story = ..., controls = ... })
+function ui.open(story: any, opts: { [string]: any }?)
+	local args
+	if typeof(story) == "table" then
+		args = table.clone(story)
+	else
+		args = table.clone(opts or {})
+		args.story = story
+	end
 	return call("open", args)
 end
 function ui.close(key: string?) return call("close", { key = key }) end
