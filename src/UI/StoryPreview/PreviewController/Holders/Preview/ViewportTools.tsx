@@ -5,8 +5,9 @@ import { createPortal } from "@rbxts/react-roblox";
 import { CoreGui, GuiService, Selection } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import { usePlugin } from "Hooks/Reflex/Use/Plugin";
-import { selectCommentTool, selectSelectTool } from "Reflex/Interface";
+import { selectCommentTool, selectSelectTool, selectTweakTool } from "Reflex/Interface";
 import CommentElements from "UI/StoryPanel/StoryTools/CommentElements";
+import TweakElements from "UI/StoryPanel/StoryTools/TweakElements";
 import ComponentHighlight from "UI/StoryPanel/StoryTools/SelectElements/Highlight";
 import { GetGuisAtPosition } from "UI/StoryPanel/StoryTools/SelectElements/Utils";
 
@@ -21,8 +22,9 @@ function ViewportTools(props: ViewportToolsProps) {
 	const plugin = usePlugin();
 	const selectTool = useSelector(selectSelectTool);
 	const commentTool = useSelector(selectCommentTool);
-	const { setSelectTool, setCommentTool } = useProducer<RootProducer>();
-	const active = selectTool || commentTool;
+	const tweakTool = useSelector(selectTweakTool);
+	const { setSelectTool, setCommentTool, setTweakTool } = useProducer<RootProducer>();
+	const active = selectTool || commentTool || tweakTool;
 	const holder = props.PreviewEntry.Holder;
 	const [anchor] = useBinding(Vector2.zero);
 	const [hovered, setHovered] = useState<GuiObject>();
@@ -49,6 +51,7 @@ function ViewportTools(props: ViewportToolsProps) {
 		const deactivated = plugin.Deactivation.Connect(() => {
 			setSelectTool(false);
 			setCommentTool(false);
+			setTweakTool(false);
 		});
 		return () => {
 			deactivated.Disconnect();
@@ -57,14 +60,14 @@ function ViewportTools(props: ViewportToolsProps) {
 	}, [active, plugin]);
 
 	useEffect(() => {
-		if (!selectTool || commentTool || !holder || !mouse) {
+		if (!selectTool || commentTool || tweakTool || !holder || !mouse) {
 			setHovered(undefined);
 			return;
 		}
 		return setInterval(() => setHovered(GetGuisAtPosition(holder, getMouse())[0]), 0.1);
-	}, [selectTool, commentTool, holder, mouse, ignoreInset]);
+	}, [selectTool, commentTool, tweakTool, holder, mouse, ignoreInset]);
 
-	useEventListener(selectTool && !commentTool ? clicked.Event : undefined, () => {
+	useEventListener(selectTool && !commentTool && !tweakTool ? clicked.Event : undefined, () => {
 		if (hovered) Selection.Set([hovered]);
 	});
 
@@ -87,7 +90,14 @@ function ViewportTools(props: ViewportToolsProps) {
 				ZIndex={0}
 				Event={{ MouseButton1Down: () => clicked.Fire() }}
 			/>
-			{commentTool ? (
+			{tweakTool ? (
+				<TweakElements
+					Inside={true}
+					Anchor={anchor}
+					PreviewEntry={props.PreviewEntry}
+					Viewport={{ GetMouse: getMouse, Clicked: clicked.Event }}
+				/>
+			) : commentTool ? (
 				<CommentElements
 					Inside={true}
 					Anchor={anchor}

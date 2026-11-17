@@ -49,7 +49,7 @@ const PIN_SIZE = 18;
 const BOX_SIZE = new Vector2(260, 108);
 const ACCENT = Color3.fromRGB(255, 196, 61);
 
-function FlattenControls(values: Record<string, unknown>, prefix = "", out: Record<string, string> = {}) {
+export function FlattenControls(values: Record<string, unknown>, prefix = "", out: Record<string, string> = {}) {
 	for (const [name, value] of pairs(values)) {
 		if (typeIs(value, "table") && getmetatable(value) === undefined && !("Color" in (value as object))) {
 			FlattenControls(value as Record<string, unknown>, `${prefix}${name}.`, out);
@@ -60,7 +60,7 @@ function FlattenControls(values: Record<string, unknown>, prefix = "", out: Reco
 	return out;
 }
 
-function ElementText(gui: GuiObject) {
+export function ElementText(gui: GuiObject) {
 	if (gui.IsA("TextLabel") || gui.IsA("TextButton") || gui.IsA("TextBox")) {
 		const text = gui.ContentText !== "" ? gui.ContentText : gui.Text;
 		return text.sub(1, 120);

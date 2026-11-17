@@ -6,6 +6,7 @@ import { Root, createLegacyRoot, createPortal } from "@rbxts/react-roblox";
 import { RunService } from "@rbxts/services";
 import { StartAgentBridge } from "Agent/AgentBridge";
 import { SetCommentsPlugin } from "Agent/AgentComments";
+import { SetTweaksPlugin, StartTweakApplier } from "Agent/AgentTweaks";
 import { RootProducer } from "Reflex";
 import Plugin from "UI/Plugin";
 import { Div } from "UI/Styles/Div";
@@ -74,6 +75,8 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 	};
 
 	SetCommentsPlugin(plugin);
+	SetTweaksPlugin(plugin);
+	const stopTweakApplier = StartTweakApplier();
 	const stopAgentBridge = StartAgentBridge({ Plugin: plugin, DockWidget: dockWidget, EnsureRoot: ensureRoot });
 
 	dockWidget.BindToClose(() => {
@@ -89,6 +92,7 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 		}
 		RootProducer.resetState();
 		stopAgentBridge();
+		stopTweakApplier();
 		buttonConnection.Disconnect();
 		stopConnection.Disconnect();
 		dockEnableConnection.Disconnect();

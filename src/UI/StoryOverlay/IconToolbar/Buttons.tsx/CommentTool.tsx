@@ -7,11 +7,14 @@ import { ToolButtonProps } from "../ToolButtonsList";
 
 // Comment tool: click an element in the story and leave a note an AI agent reads through the agent bridge
 function CommentTool(props: ToolButtonProps) {
-	const { setCommentTool, setSelectTool } = useProducer<RootProducer>();
+	const { setCommentTool, setSelectTool, setTweakTool } = useProducer<RootProducer>();
 	const commentTool = useSelector(selectCommentTool);
 
 	const OnToggle = useCallback(() => {
-		if (!commentTool) setSelectTool(false);
+		if (!commentTool) {
+			setSelectTool(false);
+			setTweakTool(false);
+		}
 		setCommentTool(!commentTool);
 	}, [commentTool]);
 

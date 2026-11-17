@@ -9,13 +9,27 @@ import { AgentControlHandle, GetControlHandle } from "./AgentRegistry";
 import { AgentLogEntry, AgentLogSince } from "./AgentLog";
 import { AgentComment, DeleteComments, FindElementByPath, GetComments, UpdateComment } from "./AgentComments";
 import { API_SOURCE } from "./AgentApiSource";
+import {
+	AgentTweak,
+	DeleteTweaks,
+	EncodeOrString,
+	GetTargetInstance,
+	GetTweaks,
+	IsShowingOriginal,
+	ReadProperty,
+	RecordTweak,
+	SetShowOriginal,
+	UpdateTweak,
+	WriteProperty
+} from "./AgentTweaks";
+import { FormatEncoded, FormatValue, ParseValue } from "./AgentValues";
 
 // Scriptable API for AI agents / scripts (e.g. Studio MCP execute_luau, the command bar).
 // A Folder "AILabs" in CoreGui holds a BindableFunction "Invoke" (works across plugin/command-bar VMs) and a
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.4";
+export const AGENT_BUILD = "2026-11-17.5";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -388,6 +402,29 @@ function CommentToData(comment: AgentComment) {
 	};
 }
 
+function TweakToData(tweak: AgentTweak) {
+	return {
+		id: tweak.Id,
+		story: tweak.Story,
+		storyName: tweak.StoryName,
+		element: tweak.Element,
+		elementClass: tweak.ElementClass,
+		elementText: tweak.ElementText,
+		target: tweak.Target,
+		property: tweak.Property,
+		old: FormatEncoded(tweak.Old),
+		new: FormatEncoded(tweak.New),
+		oldValue: tweak.Old,
+		newValue: tweak.New,
+		controls: tweak.Controls,
+		viewport: { width: tweak.Viewport.Width, height: tweak.Viewport.Height },
+		mode: tweak.Mode,
+		created: tweak.Created,
+		updated: tweak.Updated,
+		resolved: tweak.Resolved
+	};
+}
+
 // ---------------------------------------------------------------------------------------------------- argument checks
 
 let currentCommand = "?";
@@ -497,7 +534,9 @@ export function StartAgentBridge(options: BridgeOptions) {
 				version: `${Configs.Version.Mayor}.${Configs.Version.Minor}.${Configs.Version.Fix}`,
 				build: AGENT_BUILD,
 				windowOpen: options.DockWidget.Enabled,
-				tool: RootProducer.getState().interface.commentTool
+				tool: RootProducer.getState().interface.tweakTool
+					? "tweak"
+					: RootProducer.getState().interface.commentTool
 					? "comment"
 					: RootProducer.getState().interface.selectTool
 						? "select"
@@ -505,6 +544,8 @@ export function StartAgentBridge(options: BridgeOptions) {
 				stories: GetStoryModules().size(),
 				mounted: previews,
 				comments: GetComments().filter((c) => !c.Resolved).size(),
+				tweaks: GetTweaks().filter((t) => !t.Resolved).size(),
+				showingOriginal: IsShowingOriginal(),
 				presets: Serialize(CapturePresets)
 			};
 		},
@@ -522,9 +563,11 @@ export function StartAgentBridge(options: BridgeOptions) {
 
 		tool: (args) => {
 			const name = OptStr(args, "name") ?? "none";
-			if (name !== "select" && name !== "comment" && name !== "none") Fail("tool must be select, comment or none");
+			if (name !== "select" && name !== "comment" && name !== "tweak" && name !== "none")
+				Fail("tool must be select, comment, tweak or none");
 			RootProducer.setSelectTool(name === "select");
 			RootProducer.setCommentTool(name === "comment");
+			RootProducer.setTweakTool(name === "tweak");
 			Settle(2);
 			return { tool: name };
 		},
@@ -644,6 +687,85 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const updated = UpdateComment(ReqStr(args, "id"), { Resolved: OptBool(args, "resolved") ?? true });
 			if (!updated) Fail(`no comment '${args.id}'`);
 			return CommentToData(updated);
+		},
+
+		tweaks: (args) => {
+			const story = OptStr(args, "story");
+			let module: ModuleScript | undefined;
+			if (story !== undefined) module = FindStory(story);
+			return GetTweaks()
+				.filter((t) => (OptBool(args, "all") === true ? true : !t.Resolved))
+				.filter((t) => (module ? t.Story === module.GetFullName() : true))
+				.map(TweakToData);
+		},
+
+		tweak: (args) => {
+			const entry = GetEntry(OptStr(args, "key"));
+			if (!entry.Holder) Fail("tweak: story has no holder yet");
+			const path = ReqStr(args, "element");
+			const property = ReqStr(args, "property");
+			const target = OptStr(args, "target") ?? "";
+			const element = FindElementByPath(entry.Holder, path);
+			if (!element) Fail(`tweak: no element at '${path}'`);
+			const instance = GetTargetInstance(element, target);
+			if (!instance) Fail(`tweak: '${path}' has no ${target}`);
+			const [ok, current] = ReadProperty(instance, property);
+			if (!ok) Fail(`tweak: ${instance.ClassName} has no property '${property}'`);
+			let value = args.value;
+			if (typeIs(value, "string") && !typeIs(current, "string")) value = ParseValue(value, current);
+			if (value === undefined || typeOf(value) !== typeOf(current))
+				Fail(`tweak: '${tostring(args.value)}' isn't a valid ${typeOf(current)} (current ${FormatValue(current)})`);
+			if (!WriteProperty(instance, property, value)) Fail(`tweak: couldn't set ${property}`);
+			const camera = Workspace.CurrentCamera;
+			const handle = GetControlHandle(entry.Key);
+			const flat: Record<string, string> = {};
+			if (handle) for (const [k, v] of pairs(handle.Values)) flat[k as string] = tostring(v);
+			return TweakToData(
+				RecordTweak({
+					Story: entry.Module.GetFullName(),
+					StoryName: StoryName(entry.Module),
+					Element: path,
+					ElementClass: element.ClassName,
+					Target: target,
+					Property: property,
+					Old: EncodeOrString(current),
+					New: EncodeOrString(value),
+					Controls: flat,
+					Viewport: {
+						Width: camera ? math.round(camera.ViewportSize.X) : 0,
+						Height: camera ? math.round(camera.ViewportSize.Y) : 0
+					},
+					Mode: "agent"
+				})
+			);
+		},
+
+		resolveTweak: (args) => {
+			const updated = UpdateTweak(ReqStr(args, "id"), { Resolved: OptBool(args, "resolved") ?? true });
+			if (!updated) Fail(`resolveTweak: no tweak '${args.id}'`);
+			return TweakToData(updated);
+		},
+
+		clearTweaks: (args) => {
+			const id = OptStr(args, "id");
+			const story = OptStr(args, "story");
+			const resolved = OptBool(args, "resolved");
+			const all = OptBool(args, "all");
+			if (id === undefined && story === undefined && resolved !== true && all !== true)
+				Fail("clearTweaks: pass id, story, resolved = true or all = true");
+			const removed = DeleteTweaks((t) => {
+				if (id !== undefined) return t.Id === id;
+				if (story !== undefined) return t.Story === story || t.StoryName === story;
+				if (resolved === true) return t.Resolved;
+				return true;
+			}, OptBool(args, "restore") ?? true);
+			return { removed };
+		},
+
+		showOriginal: (args) => {
+			SetShowOriginal(OptBool(args, "original") ?? true);
+			Settle(2);
+			return { showingOriginal: IsShowingOriginal() };
 		},
 
 		deleteComments: (args) => {

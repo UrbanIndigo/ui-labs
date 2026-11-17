@@ -2,7 +2,7 @@ import React, { useBinding } from "@rbxts/react";
 import { useSelector } from "@rbxts/react-reflex";
 import { useToolbarHovered } from "Context/StoryPanelContext";
 import { useToggler } from "Hooks/Utils/Toggler";
-import { selectCommentTool, selectMeasureTool, selectMouseRules, selectSelectTool, selectShowOutlines } from "Reflex/Interface";
+import { selectCommentTool, selectMeasureTool, selectTweakTool, selectMouseRules, selectSelectTool, selectShowOutlines } from "Reflex/Interface";
 import { Div } from "UI/Styles/Div";
 
 import CommentElements from "./CommentElements";
@@ -10,6 +10,7 @@ import MeasureTool from "./MeasureTool";
 import MouseRules from "./MouseRules";
 import SelectElements from "./SelectElements";
 import ShowOutlines from "./ShowOutlines";
+import TweakElements from "./TweakElements";
 
 interface StoryToolsProps {
 	PreviewEntry: PreviewEntry;
@@ -26,6 +27,7 @@ function StoryTools(props: StoryToolsProps) {
 	const selectTool = useSelector(selectSelectTool);
 	const showOutlines = useSelector(selectShowOutlines);
 	const commentTool = useSelector(selectCommentTool);
+	const tweakTool = useSelector(selectTweakTool);
 	const mouseRules = useSelector(selectMouseRules);
 
 	return (
@@ -44,6 +46,7 @@ function StoryTools(props: StoryToolsProps) {
 			{commentTool ? (
 				<CommentElements Inside={isInside} Anchor={anchor} PreviewEntry={props.PreviewEntry} />
 			) : undefined}
+			{tweakTool ? <TweakElements Inside={isInside} Anchor={anchor} PreviewEntry={props.PreviewEntry} /> : undefined}
 			{showOutlines ? <ShowOutlines Anchor={anchor} PreviewEntry={props.PreviewEntry} /> : undefined}
 			{mouseRules ? <MouseRules Inside={isInside} Anchor={anchor} PreviewEntry={props.PreviewEntry} /> : undefined}
 		</Div>

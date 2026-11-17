@@ -9,6 +9,7 @@ import MouseRules from "./Buttons.tsx/MouseRules";
 import Reload from "./Buttons.tsx/Reload";
 import SelectElements from "./Buttons.tsx/SelectElements";
 import ShowOutlines from "./Buttons.tsx/ShowOutlines";
+import TweakTool from "./Buttons.tsx/TweakTool";
 import Viewport from "./Buttons.tsx/Viewport";
 import ZoomIn from "./Buttons.tsx/ZoomIn";
 import ZoomOut from "./Buttons.tsx/ZoomOut";
@@ -41,6 +42,7 @@ export const ToolButtonsList = [
 	{ Name: "MeasureTool", Render: MeasureTool, DisplayName: "Measure Tool" },
 	{ Name: "SelectElements", Render: SelectElements, DisplayName: "Select Elements" },
 	{ Name: "CommentTool", Render: CommentTool, DisplayName: "Comment For AI" },
+	{ Name: "TweakTool", Render: TweakTool, DisplayName: "Tweak Properties" },
 	{ Name: "ShowOutlines", Render: ShowOutlines, DisplayName: "Show Outlines" },
 	{ Name: "MouseRules", Render: MouseRules, DisplayName: "Mouse Rules" }
 ] as const;

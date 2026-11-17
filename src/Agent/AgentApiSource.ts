@@ -50,7 +50,7 @@ function ui.capture(capture: any?, opts: { [string]: any }?)
 	args.capture = if capture == nil then "fill" else capture
 	return call("capture", args)
 end
--- turn on the Select Elements or Comment For AI tool ("select" | "comment" | "none")
+-- turn on a tool: "select" (Select Elements), "comment" (Comment For AI), "tweak" (Tweak Properties) or "none"
 function ui.tool(name: string?) return call("tool", { name = name }) end
 function ui.zoom(zoom: number?, key: string?) return call("zoom", { zoom = zoom, key = key, reset = true }) end
 -- GUI tree of the story (names, classes, rects relative to the story root, texts, images)
@@ -59,6 +59,17 @@ function ui.logs(since: number?) return call("logs", { since = since }) end
 -- comments people left with the Comment tool (unresolved; opts.all includes resolved, opts.story filters)
 function ui.comments(opts: { [string]: any }?) return call("comments", opts or {}) end
 function ui.resolveComment(id: string, resolved: boolean?) return call("resolveComment", { id = id, resolved = resolved }) end
+-- property tweaks people made with the Tweak tool (unresolved; opts.all includes resolved, opts.story filters).
+-- Each: element, target ("" or a child class like "UICorner"), property, old/new (text) + oldValue/newValue (typed),
+-- controls and viewport size at the time
+function ui.tweaks(opts: { [string]: any }?) return call("tweaks", opts or {}) end
+-- apply + record a tweak from a script: ui.tweak({ element = path, property = "TextSize", value = 24, target = "" })
+function ui.tweak(opts: { [string]: any }) return call("tweak", opts) end
+function ui.resolveTweak(id: string, resolved: boolean?) return call("resolveTweak", { id = id, resolved = resolved }) end
+-- opts: { id = ... } | { story = ... } | { resolved = true } | { all = true }; restore = false keeps the tweaked values
+function ui.clearTweaks(opts: { [string]: any }) return call("clearTweaks", opts) end
+-- show the original values (true) or the tweaked ones (false)
+function ui.showOriginal(original: boolean?) return call("showOriginal", { original = if original == nil then true else original }) end
 function ui.deleteComments(opts: { [string]: any }) return call("deleteComments", opts) end
 
 return ui

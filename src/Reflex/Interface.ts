@@ -11,6 +11,7 @@ interface InterfaceState {
 	measureTool: boolean;
 	selectTool: boolean;
 	commentTool: boolean;
+	tweakTool: boolean;
 	showOutlines: boolean;
 	mouseRules: boolean;
 	storyLock: Set<string>;
@@ -26,6 +27,7 @@ const initialState: InterfaceState = {
 	measureTool: false,
 	selectTool: false,
 	commentTool: false,
+	tweakTool: false,
 	showOutlines: false,
 	mouseRules: false,
 	storyLock: new Set()
@@ -40,6 +42,7 @@ export const selectFullscreen = (state: RootState) => state.interface.fullscreen
 export const selectMeasureTool = (state: RootState) => state.interface.measureTool;
 export const selectSelectTool = (state: RootState) => state.interface.selectTool;
 export const selectCommentTool = (state: RootState) => state.interface.commentTool;
+export const selectTweakTool = (state: RootState) => state.interface.tweakTool;
 export const selectShowOutlines = (state: RootState) => state.interface.showOutlines;
 export const selectMouseRules = (state: RootState) => state.interface.mouseRules;
 export const selectStoryLock = (state: RootState) => state.interface.storyLock;
@@ -69,6 +72,9 @@ export const InterfaceProducer = createProducer(initialState, {
 	},
 	setSelectTool: (state, active: boolean) => {
 		return { ...state, selectTool: active };
+	},
+	setTweakTool: (state, active: boolean) => {
+		return { ...state, tweakTool: active };
 	},
 	setCommentTool: (state, active: boolean) => {
 		return { ...state, commentTool: active };

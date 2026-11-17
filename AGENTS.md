@@ -43,6 +43,11 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.capture(size?, opts?)` | Moves the story into capture mode (below). `false` puts it back in the AI Labs window |
 | `ui.tree(opts?)` | The story's GUI tree: name, class, rect relative to the story root, text (with `textFits = false` when it overflows), images (with `imageLoaded = false`). `opts.depth`, `opts.maxNodes`, `opts.path` |
 | `ui.tool(name?)` | Turns on `"select"` (Select Elements) or `"comment"` (Comment For AI), or `"none"` |
+| `ui.tweaks(opts?)` | Unresolved property tweaks (see Tweak below). `opts.story` filters, `opts.all` includes resolved ones |
+| `ui.tweak({ element, property, value, target? })` | Applies and records a tweak from a script. `value` can be typed or text like `"24"`, `"#ff8800"` or `"{0.5, 0}, {0, 40}"` |
+| `ui.resolveTweak(id, resolved?)` | Marks a tweak as copied into code: it stops being re-applied and leaves `ui.tweaks()` |
+| `ui.clearTweaks({ id \| story \| resolved = true \| all = true, restore? })` | Deletes tweaks. By default it puts the original values back on mounted stories |
+| `ui.showOriginal(true \| false)` | Shows the untweaked values, or the tweaked ones again |
 | `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
 | `ui.window(open?)` | Opens (`true`) or closes (`false`) the AI Labs window |
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
@@ -125,6 +130,38 @@ Comments are stored in the plugin's settings, so they survive Studio restarts. E
 
 An agent reads them with `ui.comments()`. It can find the element again with `ui.tree({ path = comment.element })`
 and resolve the comment with `ui.resolveComment(id)` once it's handled.
+
+## Tweak properties
+
+The story toolbar has a **Tweak Properties** button (palette icon, Shift+T). It works in the AI Labs window and on the
+viewport.
+
+1. Click an element. A panel lists the properties that element has:
+   - Text, TextSize, TextColor3, FontWeight, alignment, TextScaled/Wrapped;
+   - Size, Position, AnchorPoint, Rotation, ZIndex, Visible;
+   - BackgroundColor3/Transparency, ImageColor3/Transparency, ScaleType;
+   - its UICorner radius, UIStroke thickness/colour/transparency, UIPadding sides, UIListLayout padding, UIGridLayout
+     cell size and padding, UIScale and UITextSizeConstraint.
+2. Edit a value and press Enter (or click away). It applies live. Text formats:
+   - colours: `#ff8800` or `255, 136, 0`;
+   - UDim2: `{0.5, 10}, {0, 40}`, or `200, 40` for offsets;
+   - UDim: `0, 8`, or `8` for an offset;
+   - enums: the item name (`Center`, `Bold`).
+3. Every change is recorded as a tweak:
+   - story, element path, class, target (`""` or the child class, e.g. `UICorner`) and property;
+   - the old value and the new one;
+   - the story controls and viewport size at the time, so an agent can tell the phone layout from the desktop one;
+   - `mode` (widget, viewport or agent).
+
+   Changing the same property again updates the tweak and keeps the first old value.
+4. Tweaks are stored in the plugin's settings and re-applied to mounted stories every 0.2 s. They survive remounts,
+   reloads and Vide re-renders that overwrite a property. A brief flicker is possible when a re-render resets a value.
+5. **Tweaked / Original** toggles between the tweaked and original values (`ui.showOriginal`). **Send to AI** bundles
+   the element's tweaks, plus an optional note, into one comment.
+
+An agent reads them with `ui.tweaks()`, writes the values into the source, then calls `ui.resolveTweak(id)`. The
+recorded values were measured at the viewport size in `viewport`: a `px()`-scaled value has to be divided by the
+story's scale at that size.
 
 ## Shell helper
 
