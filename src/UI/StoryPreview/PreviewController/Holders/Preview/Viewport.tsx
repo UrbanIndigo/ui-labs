@@ -7,6 +7,8 @@ import Configs from "Plugin/Configs";
 import { useDeferLifetime } from "UI/Holders/LifetimeChildren/LifetimeController";
 import { Div } from "UI/Styles/Div";
 
+import ViewportTools from "./ViewportTools";
+
 export const CAPTURE_GUI_NAME = "UILabsCapture";
 
 function useViewportSize() {
@@ -42,12 +44,20 @@ function Viewport(props: StoryHolderProps) {
 		props.SetCanReload(widgetState.ViewportFocused);
 	}, [widgetState.ViewportFocused, props.SetCanReload]);
 
+	const tools = <ViewportTools PreviewEntry={props.PreviewEntry} />;
+
 	if (capture === undefined) {
-		return createPortal(
+		const gui = createPortal(
 			<screengui key={storyName} ZIndexBehavior={Enum.ZIndexBehavior.Sibling}>
 				<Div key={"Holder"} ref={mountRef}></Div>
 			</screengui>,
 			game.GetService("CoreGui")
+		);
+		return (
+			<>
+				{gui}
+				{tools}
+			</>
 		);
 	}
 
@@ -55,7 +65,7 @@ function Viewport(props: StoryHolderProps) {
 	const frameSize = capture.Size ?? viewportSize;
 	const fit = math.min(1, viewportSize.X / frameSize.X, viewportSize.Y / frameSize.Y);
 
-	return createPortal(
+	const captureGui = createPortal(
 		<screengui
 			key={CAPTURE_GUI_NAME}
 			ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
@@ -84,6 +94,12 @@ function Viewport(props: StoryHolderProps) {
 			</frame>
 		</screengui>,
 		StarterGui
+	);
+	return (
+		<>
+			{captureGui}
+			{tools}
+		</>
 	);
 }
 

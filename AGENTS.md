@@ -1,4 +1,7 @@
-# Driving UI Labs from scripts and AI agents
+# AI Labs: driving UI Labs from scripts and AI agents
+
+**AI Labs** is this fork of [UI Labs](https://github.com/PepeElToro41/ui-labs), renamed so it can be told apart from the
+marketplace plugin when both are installed.
 
 This fork adds an **agent bridge**: a scriptable API reachable from anything that runs Luau in Studio's edit
 DataModel (Studio MCP `execute_luau`, the command bar, another plugin). It also adds:
@@ -7,27 +10,27 @@ DataModel (Studio MCP `execute_luau`, the command bar, another plugin). It also 
 - a **Comment tool** so a person can click an element in a story and leave a note that an agent reads back.
 
 The plugin works as before for humans. The bridge exists while the plugin is loaded in Edit mode, whether or not the
-UI Labs window is open: when it's closed the app runs headless.
+AI Labs window is open: when it's closed the app runs headless.
 
 ## Install
 
 ```bash
 corepack pnpm@9 install          # pnpm 10+ ignores .npmrc's public-hoist-pattern, so @rbxts-js goes missing
 npx rbxtsc
-rojo build default.project.json --output ~/Documents/Roblox/Plugins/UILabs-Agent.rbxm
+rojo build default.project.json --output ~/Documents/Roblox/Plugins/AILabs.rbxm
 ```
 
 Studio loads new local plugins when it starts, so restart Studio (or reopen the place) after the first install.
-A local build shows up as **UI Labs (DEV)** and runs alongside the marketplace UI Labs.
+It shows up as **AI Labs** (toolbar, window title and header) and runs alongside the marketplace UI Labs.
 
 ## The API
 
 ```lua
-local ui = require(game:GetService("CoreGui"):WaitForChild("UILabsAgent").API)
+local ui = require(game:GetService("CoreGui"):WaitForChild("AILabs").API)
 ```
 
-`CoreGui.UILabsAgent` holds a `BindableFunction` named `Invoke`, which works across plugin and command-bar VMs, and
-the `API` ModuleScript that wraps it. Every call returns plain data, or raises `[UI Labs agent] <reason>`.
+`CoreGui.AILabs` holds a `BindableFunction` named `Invoke`, which works across plugin and command-bar VMs, and
+the `API` ModuleScript that wraps it. Every call returns plain data, or raises `[AI Labs] <reason>`.
 
 | Call | What it does |
 |---|---|
@@ -37,10 +40,10 @@ the `API` ModuleScript that wraps it. Every call returns plain data, or raises `
 | `ui.set(controls, key?)` | Sets controls by name (groups as nested tables), validated and coerced, then waits for the re-render |
 | `ui.controls(key?)` | Each control's `type` and `value`, plus `options` for Choose/EnumList and `min`/`max`/`step` for Slider |
 | `ui.reload(key?)` | Hot-reloads the story; returns logs |
-| `ui.capture(size?, opts?)` | Moves the story into capture mode (below). `false` puts it back in the UI Labs window |
+| `ui.capture(size?, opts?)` | Moves the story into capture mode (below). `false` puts it back in the AI Labs window |
 | `ui.tree(opts?)` | The story's GUI tree: name, class, rect relative to the story root, text (with `textFits = false` when it overflows), images (with `imageLoaded = false`). `opts.depth`, `opts.maxNodes`, `opts.path` |
 | `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
-| `ui.window(open?)` | Opens (`true`) or closes (`false`) the UI Labs window |
+| `ui.window(open?)` | Opens (`true`) or closes (`false`) the AI Labs window |
 | `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
 | `ui.logs(since?)` | The last 200 UI Labs warnings plus Output warnings and errors (`since` is an `os.clock()` value) |
 | `ui.comments(opts?)` | Unresolved comments. `opts.story` filters to a story, `opts.all` includes resolved ones |
@@ -57,7 +60,7 @@ ModuleScript itself. Matching compares trailing path segments. An ambiguous name
 - `background` / `backgroundTransparency`: the capture backdrop.
 - `widget = true`: mounts in its own dock window instead of the main panel. The result's `key` addresses it; close it
   with `ui.close(key)`.
-- `show = true`: opens the UI Labs window too.
+- `show = true`: opens the AI Labs window too.
 - `timeout`: seconds to wait for the mount (default 8).
 
 **Control values:**
@@ -106,6 +109,11 @@ The story toolbar has a **Comment For AI** button (Shift+M):
 1. Hover to highlight an element, click it, type a note, and press Enter (or Save).
 2. Numbered pins mark the comments on their elements. Clicking a pin edits or deletes its comment.
 
+Both **Select Elements** and **Comment For AI** also work on stories shown on the viewport (View On Viewport or
+capture mode). While either tool is on, the plugin takes the viewport mouse, so clicks pick GUI elements instead of 3D
+parts. Turn the tool off, or pick another Studio tool, to give the mouse back. The highlight, pins and comment box are
+drawn in CoreGui, so they never appear in `screen_capture` images.
+
 Comments are stored in the plugin's settings, so they survive Studio restarts. Each one records:
 - the story and the element's path from the story root (e.g. `SellWindow/Body/Frame[3]`);
 - the element's class and its text (or the first text inside it);
@@ -118,15 +126,15 @@ and resolve the comment with `ui.resolveComment(id)` once it's handled.
 
 ## Shell helper
 
-`tools/uilabs.py` wraps all of this around a Studio MCP client. By default it runs `python3 scripts/studio.py`; set
+`tools/ailabs.py` wraps all of this around a Studio MCP client. By default it runs `python3 scripts/studio.py`; set
 `$UILABS_STUDIO` to change that.
 
 ```bash
-python3 tools/uilabs.py list sell
-python3 tools/uilabs.py open crops/sell-page --controls '{"tab":"gear"}'
-python3 tools/uilabs.py shot crops/sell-page --controls '{"tab":"seeds"}' --capture phone --out sell.png
-python3 tools/uilabs.py comments
-python3 tools/uilabs.py call tree '{"depth":3}'
+python3 tools/ailabs.py list sell
+python3 tools/ailabs.py open crops/sell-page --controls '{"tab":"gear"}'
+python3 tools/ailabs.py shot crops/sell-page --controls '{"tab":"seeds"}' --capture phone --out sell.png
+python3 tools/ailabs.py comments
+python3 tools/ailabs.py call tree '{"depth":3}'
 ```
 
 `shot` opens the story (or reuses the open one), switches to capture mode, calls `screen_capture`, and crops to the

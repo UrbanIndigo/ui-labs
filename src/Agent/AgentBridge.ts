@@ -11,10 +11,10 @@ import { AgentComment, DeleteComments, FindElementByPath, GetComments, UpdateCom
 import { API_SOURCE } from "./AgentApiSource";
 
 // Scriptable API for AI agents / scripts (e.g. Studio MCP execute_luau, the command bar).
-// A Folder "UILabsAgent" in CoreGui holds a BindableFunction "Invoke" (works across plugin/command-bar VMs) and a
-// ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").UILabsAgent.API)
+// A Folder "AILabs" in CoreGui holds a BindableFunction "Invoke" (works across plugin/command-bar VMs) and a
+// ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
-export const AGENT_FOLDER_NAME = "UILabsAgent";
+export const AGENT_FOLDER_NAME = "AILabs";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,
@@ -103,7 +103,7 @@ function FindStory(query: string | ModuleScript) {
 	const modules = GetStoryModules();
 	if (typeIs(query, "Instance")) {
 		if (modules.includes(query)) return query;
-		Fail(`'${query.GetFullName()}' is not a story UI Labs found`);
+		Fail(`'${query.GetFullName()}' is not a story AI Labs found`);
 	}
 	for (const module of modules) {
 		if (module.GetFullName() === query) return module;
@@ -445,7 +445,7 @@ export function StartAgentBridge(options: BridgeOptions) {
 			const previews: defined[] = [];
 			RootProducer.getState().storyPreview.mountPreviews.forEach((entry) => previews.push(SummarizeEntry(entry)));
 			return {
-				version: `${Configs.Version.Mayor}.${Configs.Version.Minor}.${Configs.Version.Fix}-agent`,
+				version: `${Configs.Version.Mayor}.${Configs.Version.Minor}.${Configs.Version.Fix}`,
 				windowOpen: options.DockWidget.Enabled,
 				stories: GetStoryModules().size(),
 				mounted: previews,

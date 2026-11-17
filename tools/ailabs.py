@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Drive the UI Labs agent bridge from the shell through a Studio MCP client.
+Drive the AI Labs agent bridge from the shell through a Studio MCP client.
 
-    python3 uilabs.py call <command> ['<json args>']      # raw bridge call, prints JSON
-    python3 uilabs.py list [filter]
-    python3 uilabs.py open <story> [--controls '<json>'] [--capture phone] [--widget]
-    python3 uilabs.py set '<json controls>'
-    python3 uilabs.py tree [--depth N]
-    python3 uilabs.py comments [--story <story>] [--all]
-    python3 uilabs.py shot [<story>] [--controls '<json>'] [--capture fill|phone|tablet|laptop|desktop|WxH]
+    python3 ailabs.py call <command> ['<json args>']      # raw bridge call, prints JSON
+    python3 ailabs.py list [filter]
+    python3 ailabs.py open <story> [--controls '<json>'] [--capture phone] [--widget]
+    python3 ailabs.py set '<json controls>'
+    python3 ailabs.py tree [--depth N]
+    python3 ailabs.py comments [--story <story>] [--all]
+    python3 ailabs.py shot [<story>] [--controls '<json>'] [--capture fill|phone|tablet|laptop|desktop|WxH]
                          [--crop content|frame|none] [--out shot.png]
-    python3 uilabs.py close [--all]
+    python3 ailabs.py close [--all]
 
 It runs Luau through `execute_luau` and screenshots with `screen_capture` using the command in $UILABS_STUDIO
 (default: "python3 scripts/studio.py", i.e. run from a repo that has a Studio MCP helper). The command is called as
@@ -25,7 +25,7 @@ import subprocess
 import sys
 
 STUDIO = shlex.split(os.environ.get("UILABS_STUDIO", "python3 scripts/studio.py"))
-REQUIRE = 'local ui = require(game:GetService("CoreGui"):WaitForChild("UILabsAgent", 5).API)'
+REQUIRE = 'local ui = require(game:GetService("CoreGui"):WaitForChild("AILabs", 5).API)'
 
 
 def studio(tool, args):
@@ -86,7 +86,7 @@ def flag(args, name, default=None, boolean=False):
 def shot(args):
     capture = parse_capture(flag(args, "--capture", "fill"))
     crop = flag(args, "--crop", "content")
-    out = flag(args, "--out", "uilabs-shot.png")
+    out = flag(args, "--out", "ailabs-shot.png")
     controls = flag(args, "--controls")
     if args:
         info = call("open", {"story": args[0], "controls": json.loads(controls) if controls else None, "capture": capture})

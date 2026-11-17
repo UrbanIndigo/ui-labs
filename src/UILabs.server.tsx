@@ -15,13 +15,13 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 	const isLocal = IsLocalPlugin(plugin);
 	const isCanary = IsCanaryPlugin(plugin);
 
-	const toolbar = plugin.CreateToolbar(isLocal ? "UI Labs (DEV)" : "UI Labs");
+	const toolbar = plugin.CreateToolbar("AI Labs");
 	const pluginButton = toolbar.CreateButton(
-		"UI Labs",
-		"Open UI Labs",
+		"AI Labs",
+		"Open AI Labs",
 		isLocal ? "rbxassetid://16652065460" : isCanary ? "rbxassetid://88856573487980" : "rbxassetid://13858107432"
 	);
-	const stopButton = toolbar.CreateButton("Stop", "Stop UI Labs", "rbxassetid://13960086023");
+	const stopButton = toolbar.CreateButton("Stop", "Stop AI Labs", "rbxassetid://13960086023");
 
 	pluginButton.ClickableWhenViewportHidden = true;
 	stopButton.ClickableWhenViewportHidden = true;
@@ -31,7 +31,7 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 		new DockWidgetPluginGuiInfo(Enum.InitialDockState.Float, false, false, 0, 0)
 	);
 
-	dockWidget.Title = "UI Labs - Storybook";
+	dockWidget.Title = "AI Labs - Storybook";
 	dockWidget.Name = isLocal ? "UILabs(DEV)" : "UILabs";
 	dockWidget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
 	let isOpen = false;

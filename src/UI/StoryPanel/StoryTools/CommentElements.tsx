@@ -28,6 +28,8 @@ interface CommentElementsProps {
 	Inside: boolean;
 	Anchor: Binding<Vector2>;
 	PreviewEntry: PreviewEntry;
+	// Viewport mode: mouse position and clicks come from the plugin mouse instead of the widget
+	Viewport?: { GetMouse: () => Vector2; Clicked: RBXScriptSignal };
 }
 
 interface Draft {
@@ -75,8 +77,12 @@ function ElementText(gui: GuiObject) {
 function CommentElements(props: CommentElementsProps) {
 	const theme = useTheme();
 	const mousePos = useMousePos();
-	const inputBegan = useInputBegan();
-	const [toolbarHovered] = useToolbarHovered();
+	const widgetInputBegan = useInputBegan();
+	const [widgetToolbarHovered] = useToolbarHovered();
+	const viewport = props.Viewport;
+	const toolbarHovered = viewport ? false : widgetToolbarHovered;
+	const getMouse = () => (viewport ? viewport.GetMouse() : mousePos.getValue());
+	const zoom = viewport ? 1 : props.PreviewEntry.Zoom / 100;
 	const entry = props.PreviewEntry;
 	const holder = entry.Holder;
 	const storyPath = entry.Module.GetFullName();
@@ -103,7 +109,7 @@ function CommentElements(props: CommentElementsProps) {
 			return;
 		}
 		return setInterval(() => {
-			const inside = GetGuisAtPosition(holder, mousePos.getValue());
+			const inside = GetGuisAtPosition(holder, getMouse());
 			setHovered(inside[0]);
 		}, 0.1);
 	}, [props.Inside, toolbarHovered, holder]);
@@ -125,14 +131,18 @@ function CommentElements(props: CommentElementsProps) {
 		return setInterval(update, 0.2);
 	}, [storyComments, holder]);
 
-	useEventListener(inputBegan, (input) => {
-		if (input.UserInputType !== Enum.UserInputType.MouseButton1) return;
+	const onClick = () => {
 		if (!props.Inside || toolbarHovered || overUI) return;
 		if (!holder || !hovered) return;
-		const position = mousePos.getValue().sub(props.Anchor.getValue());
+		const position = getMouse().sub(props.Anchor.getValue());
 		setText("");
 		setDraft({ Element: hovered, Path: GetElementPath(holder, hovered), Position: position });
+	};
+	useEventListener(viewport ? undefined : widgetInputBegan, (input: InputObject) => {
+		if (input.UserInputType !== Enum.UserInputType.MouseButton1) return;
+		onClick();
 	});
+	useEventListener(viewport?.Clicked, () => onClick());
 
 	useEffect(() => {
 		if (!draft) return;
@@ -140,7 +150,7 @@ function CommentElements(props: CommentElementsProps) {
 	}, [draft]);
 
 	useUnmountEffect(() => setOverUI(false));
-	useStoryLockAction("CommentElements", props.Inside);
+	useStoryLockAction("CommentElements", viewport ? false : props.Inside);
 
 	const save = () => {
 		if (!draft || !holder) return;
@@ -150,7 +160,6 @@ function CommentElements(props: CommentElementsProps) {
 			UpdateComment(draft.Editing.Id, { Text: body });
 		} else {
 			const element = draft.Element!;
-			const zoom = entry.Zoom / 100;
 			const relative = element.AbsolutePosition.sub(holder.AbsolutePosition).div(zoom);
 			const handle = GetControlHandle(entry.Key);
 			AddComment({
