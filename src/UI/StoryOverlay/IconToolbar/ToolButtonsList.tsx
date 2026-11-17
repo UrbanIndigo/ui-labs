@@ -1,5 +1,6 @@
 import React from "@rbxts/react";
 
+import CommentTool from "./Buttons.tsx/CommentTool";
 import Explorer from "./Buttons.tsx/Explorer";
 import FullscreenMode from "./Buttons.tsx/FullscreenMode";
 import LightBackground from "./Buttons.tsx/LightBackground";
@@ -39,6 +40,7 @@ export const ToolButtonsList = [
 	{ Name: "LightBackground", Render: LightBackground, DisplayName: "Invert Background" },
 	{ Name: "MeasureTool", Render: MeasureTool, DisplayName: "Measure Tool" },
 	{ Name: "SelectElements", Render: SelectElements, DisplayName: "Select Elements" },
+	{ Name: "CommentTool", Render: CommentTool, DisplayName: "Comment For AI" },
 	{ Name: "ShowOutlines", Render: ShowOutlines, DisplayName: "Show Outlines" },
 	{ Name: "MouseRules", Render: MouseRules, DisplayName: "Mouse Rules" }
 ] as const;

@@ -4,6 +4,8 @@ import React from "@rbxts/react";
 import { ReflexProvider } from "@rbxts/react-reflex";
 import { Root, createLegacyRoot, createPortal } from "@rbxts/react-roblox";
 import { RunService } from "@rbxts/services";
+import { StartAgentBridge } from "Agent/AgentBridge";
+import { SetCommentsPlugin } from "Agent/AgentComments";
 import { RootProducer } from "Reflex";
 import Plugin from "UI/Plugin";
 import { Div } from "UI/Styles/Div";
@@ -49,10 +51,9 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 		}
 	});
 
-	const onDockWidgetToggled = () => {
-		pluginButton.SetActive(dockWidget.Enabled);
-		isOpen = dockWidget.Enabled;
-		if (dockWidget.Enabled && !pluginRoot) {
+	// Mounts the app (even while the window is closed, so the agent bridge can drive it headless)
+	const ensureRoot = () => {
+		if (!pluginRoot) {
 			const pluginApp = (
 				<ReflexProvider producer={RootProducer}>
 					<Div key={"App"}>
@@ -66,6 +67,15 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 		}
 	};
 
+	const onDockWidgetToggled = () => {
+		pluginButton.SetActive(dockWidget.Enabled);
+		isOpen = dockWidget.Enabled;
+		if (dockWidget.Enabled) ensureRoot();
+	};
+
+	SetCommentsPlugin(plugin);
+	const stopAgentBridge = StartAgentBridge({ Plugin: plugin, DockWidget: dockWidget, EnsureRoot: ensureRoot });
+
 	dockWidget.BindToClose(() => {
 		dockWidget.Enabled = false;
 	});
@@ -78,6 +88,7 @@ if (!RunService.IsRunning() || RunService.IsEdit()) {
 			pluginRoot.unmount();
 		}
 		RootProducer.resetState();
+		stopAgentBridge();
 		buttonConnection.Disconnect();
 		stopConnection.Disconnect();
 		dockEnableConnection.Disconnect();

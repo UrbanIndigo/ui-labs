@@ -1,0 +1,139 @@
+# Driving UI Labs from scripts and AI agents
+
+This fork adds an **agent bridge**: a scriptable API reachable from anything that runs Luau in Studio's edit
+DataModel (Studio MCP `execute_luau`, the command bar, another plugin). It also adds:
+
+- a **capture mode** that renders a story where Studio's `screen_capture` can see it, at a chosen size;
+- a **Comment tool** so a person can click an element in a story and leave a note that an agent reads back.
+
+The plugin works as before for humans. The bridge exists while the plugin is loaded in Edit mode, whether or not the
+UI Labs window is open: when it's closed the app runs headless.
+
+## Install
+
+```bash
+corepack pnpm@9 install          # pnpm 10+ ignores .npmrc's public-hoist-pattern, so @rbxts-js goes missing
+npx rbxtsc
+rojo build default.project.json --output ~/Documents/Roblox/Plugins/UILabs-Agent.rbxm
+```
+
+Studio loads new local plugins when it starts, so restart Studio (or reopen the place) after the first install.
+A local build shows up as **UI Labs (DEV)** and runs alongside the marketplace UI Labs.
+
+## The API
+
+```lua
+local ui = require(game:GetService("CoreGui"):WaitForChild("UILabsAgent").API)
+```
+
+`CoreGui.UILabsAgent` holds a `BindableFunction` named `Invoke`, which works across plugin and command-bar VMs, and
+the `API` ModuleScript that wraps it. Every call returns plain data, or raises `[UI Labs agent] <reason>`.
+
+| Call | What it does |
+|---|---|
+| `ui.status()` | Version, whether the window is open, the story count, mounted stories (with controls and capture info), the unresolved comment count and the capture presets |
+| `ui.list(filter?)` | `{ path, name, storybook }` for every story; `filter` is a substring of the full path |
+| `ui.open(story, opts?)` | Mounts a story in the main panel (replacing what's there) and waits for it to render. Returns its key, controls, capture info and the `logs` produced while mounting |
+| `ui.set(controls, key?)` | Sets controls by name (groups as nested tables), validated and coerced, then waits for the re-render |
+| `ui.controls(key?)` | Each control's `type` and `value`, plus `options` for Choose/EnumList and `min`/`max`/`step` for Slider |
+| `ui.reload(key?)` | Hot-reloads the story; returns logs |
+| `ui.capture(size?, opts?)` | Moves the story into capture mode (below). `false` puts it back in the UI Labs window |
+| `ui.tree(opts?)` | The story's GUI tree: name, class, rect relative to the story root, text (with `textFits = false` when it overflows), images (with `imageLoaded = false`). `opts.depth`, `opts.maxNodes`, `opts.path` |
+| `ui.zoom(percent?, key?)` | Sets the panel zoom and resets the pan |
+| `ui.window(open?)` | Opens (`true`) or closes (`false`) the UI Labs window |
+| `ui.close(key?)` / `ui.closeAll()` | Unmounts a story, or all of them |
+| `ui.logs(since?)` | The last 200 UI Labs warnings plus Output warnings and errors (`since` is an `os.clock()` value) |
+| `ui.comments(opts?)` | Unresolved comments. `opts.story` filters to a story, `opts.all` includes resolved ones |
+| `ui.resolveComment(id, resolved?)` | Marks a comment done (or undone) |
+| `ui.deleteComments({ id = ... } \| { story = ... } \| { resolved = true } \| { all = true })` | Deletes comments |
+
+**Story names** can be a full name (`StarterPlayer.StarterPlayerScripts.TS.ui.crops.sell-page`), a source path
+(`src/client/ui/crops/sell-page.story.tsx`), a partial path (`crops/sell-page`), a bare name (`sell-page`) or the
+ModuleScript itself. Matching compares trailing path segments. An ambiguous name is an error that lists the candidates.
+
+**`ui.open` options:**
+- `controls`: control values to set once it mounts.
+- `capture`: same values as `ui.capture`.
+- `background` / `backgroundTransparency`: the capture backdrop.
+- `widget = true`: mounts in its own dock window instead of the main panel. The result's `key` addresses it; close it
+  with `ui.close(key)`.
+- `show = true`: opens the UI Labs window too.
+- `timeout`: seconds to wait for the mount (default 8).
+
+**Control values:**
+- Choose takes one of its options (a string like `"3"` matches the number `3`).
+- EnumList takes a key or a value.
+- Color3 takes a `Color3` or a hex string.
+- RGBA takes `{ Color, Transparency }` or a `Color3`.
+- Number and Slider take numbers or numeric strings.
+
+Unknown names and invalid options are errors that list what's valid.
+
+**Errors as data.** `open`, `set` and `reload` return the warnings and errors from that call: story require errors,
+mount and runtime errors from UI Labs, plus Output warnings and errors. Each looks like `{ kind, source, message }`.
+
+## Capture mode (screenshots)
+
+Studio's `screen_capture` renders the edit viewport with **StarterGui** but without CoreGui, which is why the stock
+"View on Viewport" (CoreGui) is invisible to it. Capture mode works around this:
+
+1. It mounts the story in a ScreenGui named `UILabsCapture` in StarterGui, with `Archivable = false` so it's never
+   saved with the place or copied into playtests, and `DisplayOrder` 100000.
+2. It puts the story in a centred frame over a solid backdrop. The frame is either the full viewport (`"fill"`) or a
+   size: `"phone"` 750×381, `"phonePortrait"`, `"tablet"` 1024×768, `"laptop"` 1280×832, `"desktop"` 1920×1080, a
+   `Vector2`, or `{ width, height }`.
+3. When the size is bigger than the viewport, it scales the frame down with a UIScale to fit.
+
+`ui.capture` returns:
+- `viewport`: the viewport size.
+- `frame`: the device frame rect.
+- `content`: the bounds of the story's visible top-level elements.
+- `scale`: the fit scale.
+
+All rects are in viewport pixels. `screen_capture` images are in physical pixels, so multiply by
+`imageWidth / viewport.width` before cropping.
+
+Limitation: a story that scales itself from `workspace.CurrentCamera.ViewportSize` (a `px()` hook, for example) still
+sees the real Studio viewport, not the frame size. Layouts built on scale or the parent's size do follow the frame.
+
+`ui.capture(false)` (or the View on Viewport button) puts the story back in the window. Closing the story removes
+the ScreenGui.
+
+## Comments for AI
+
+The story toolbar has a **Comment For AI** button (Shift+M):
+
+1. Hover to highlight an element, click it, type a note, and press Enter (or Save).
+2. Numbered pins mark the comments on their elements. Clicking a pin edits or deletes its comment.
+
+Comments are stored in the plugin's settings, so they survive Studio restarts. Each one records:
+- the story and the element's path from the story root (e.g. `SellWindow/Body/Frame[3]`);
+- the element's class and its text (or the first text inside it);
+- its rect, unaffected by zoom;
+- the control values at the time;
+- the note itself.
+
+An agent reads them with `ui.comments()`. It can find the element again with `ui.tree({ path = comment.element })`
+and resolve the comment with `ui.resolveComment(id)` once it's handled.
+
+## Shell helper
+
+`tools/uilabs.py` wraps all of this around a Studio MCP client. By default it runs `python3 scripts/studio.py`; set
+`$UILABS_STUDIO` to change that.
+
+```bash
+python3 tools/uilabs.py list sell
+python3 tools/uilabs.py open crops/sell-page --controls '{"tab":"gear"}'
+python3 tools/uilabs.py shot crops/sell-page --controls '{"tab":"seeds"}' --capture phone --out sell.png
+python3 tools/uilabs.py comments
+python3 tools/uilabs.py call tree '{"depth":3}'
+```
+
+`shot` opens the story (or reuses the open one), switches to capture mode, calls `screen_capture`, and crops to the
+story's content (`--crop frame|none` to change that).
+
+## Notes
+
+- The bridge only exists in Edit mode, like UI Labs itself. Don't start playtests to use it.
+- `open` always remounts, so a changed module is re-required: UI Labs' hot reloader requires clones, which sidesteps
+  Studio's per-session `require` cache.

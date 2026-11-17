@@ -9,7 +9,7 @@ import { selectNodeFromModule } from "Reflex/Explorer/Nodes";
 import { selectPluginWidget } from "Reflex/Plugin";
 import { Environment } from "Utils/HotReloader/Environment";
 import { HotReloader } from "Utils/HotReloader/HotReloader";
-import { CreateTuple } from "Utils/MiscUtils";
+import { CreateTuple, UILabsWarn } from "Utils/MiscUtils";
 
 import { CreateEntrySnapshot, ReloadEntry } from "../Utils";
 
@@ -138,9 +138,9 @@ export function useStoryRequire(entry: PreviewEntry, studioMode: boolean, canRel
 
 		return resultPromise.catch((err) => {
 			if (Promise.Error.is(err)) {
-				warn("Story errored while required: \n\n" + err.trace);
+				UILabsWarn("Story errored while required:", err.trace);
 			} else {
-				warn("Story errored while required: \n\n" + tostring(err));
+				UILabsWarn("Story errored while required:", tostring(err));
 			}
 		});
 	}, [resultPromise]);
