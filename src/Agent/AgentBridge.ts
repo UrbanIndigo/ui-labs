@@ -15,7 +15,7 @@ import { API_SOURCE } from "./AgentApiSource";
 // ModuleScript "API" wrapping it:  local ui = require(game:GetService("CoreGui").AILabs.API)
 
 export const AGENT_FOLDER_NAME = "AILabs";
-export const AGENT_BUILD = "2026-11-17.2";
+export const AGENT_BUILD = "2026-11-17.3";
 
 export const CapturePresets: Record<string, Vector2 | undefined> = {
 	fill: undefined,

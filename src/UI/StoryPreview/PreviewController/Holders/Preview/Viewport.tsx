@@ -8,6 +8,7 @@ import { useDeferLifetime } from "UI/Holders/LifetimeChildren/LifetimeController
 import { Div } from "UI/Styles/Div";
 
 import ViewportTools from "./ViewportTools";
+import { ParentStoryFrames } from "./ParentStory";
 
 export const CAPTURE_GUI_NAME = "UILabsCapture";
 
@@ -36,8 +37,7 @@ function Viewport(props: StoryHolderProps) {
 	useEffect(() => {
 		const holder = mountRef.current;
 		if (!holder) return;
-		props.MountFrame.Parent = holder;
-		props.ListenerFrame.Parent = holder;
+		ParentStoryFrames(props, holder);
 	}, [isCapture]);
 
 	useEffect(() => {
